@@ -1,0 +1,5 @@
+{
+  "name": "Kinetic Typewriter",
+  "description": "An artistic typographic physics simulation where words fall and interact as you type, featuring AI-generated inspiration.",
+  "requestFramePermissions": []
+}

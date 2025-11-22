@@ -1,0 +1,410 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import PhysicsWorld, { PhysicsWorldHandle } from './components/PhysicsWorld';
+import ControlPanel from './components/ControlPanel';
+import { PhysicsConfig, ColorPalette } from './types';
+import { generateCreativeText, generateFallingPoem } from './services/geminiService';
+
+const INITIAL_CONFIG: PhysicsConfig = {
+  gravity: 1,
+  restitution: 0.6,
+  friction: 0.5,
+  scale: 1,
+};
+
+const WORD_PAUSE_MS = 600; // Time to wait before starting a new word position
+const CHAR_SPACING = 35;   // Horizontal space between falling letters
+const DEFAULT_DROP_Y = 100; // Default Vertical start position
+
+const PALETTES: ColorPalette[] = [
+  { id: 'monochrome', name: 'Ink', colors: ['#000000', '#1c1917', '#292524'] },
+  { id: 'bauhaus', name: 'Bauhaus', colors: ['#111827', '#dc2626', '#2563eb', '#d97706'] },
+  { id: 'vaporwave', name: 'Vapor', colors: ['#7c3aed', '#db2777', '#0891b2', '#4f46e5'] },
+  { id: 'retro', name: 'Retro', colors: ['#9f1239', '#0f766e', '#b45309', '#431407'] },
+  { id: 'comic', name: 'Comic', colors: ['#000000', '#ef4444', '#3b82f6', '#f59e0b'] },
+  { id: 'contrast', name: 'Bold', colors: ['#000000', '#be123c', '#1d4ed8', '#047857'] },
+];
+
+const FALLING_POEM = `To fall is not to fail, but to yield. 
+We start as rigid things, holding our breath, gripping the ledge of certainty. 
+But gravity is a patient teacher. 
+Leaves fall to feed the roots. 
+Rain falls to drink the earth. 
+We fall in love to shatter our own walls. 
+We fall asleep to visit dreams we cannot name. 
+Even the stars are falling, burning their way through the ancient dark. 
+There is a grace in the descent, a freedom in the surrender. 
+To let go is to trust the air. 
+To land is to arrive, changed. 
+Gravity does not judge; it only welcomes. 
+Let yourself fall.`;
+
+function App() {
+  const [config, setConfig] = useState<PhysicsConfig>(INITIAL_CONFIG);
+  const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Palette state
+  const [activePaletteId, setActivePaletteId] = useState<string>('monochrome');
+  const colorIndexRef = useRef<number>(0);
+  
+  // Auto-type settings
+  const [isAutoTyping, setIsAutoTyping] = useState(false);
+  const [wpm, setWpm] = useState(50);
+  const [maxParticles, setMaxParticles] = useState(300);
+  const [autoText, setAutoText] = useState(FALLING_POEM);
+  const [clickIndicator, setClickIndicator] = useState<{x: number, y: number, id: number} | null>(null);
+  
+  const physicsRef = useRef<PhysicsWorldHandle>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Typewriter state
+  const lastTypeTimeRef = useRef<number>(0);
+  const cursorXRef = useRef<number>(0);
+  const cursorYRef = useRef<number>(DEFAULT_DROP_Y);
+  const cursorAnchorRef = useRef<{x: number, y: number} | null>(null);
+  
+  // Auto-type refs
+  const autoTypeIndexRef = useRef(0);
+  const autoTypeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Focus the hidden input on load for immediate typing
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  // Remove click indicator after animation
+  useEffect(() => {
+    if (clickIndicator) {
+      const timer = setTimeout(() => {
+        setClickIndicator(null);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [clickIndicator]);
+
+  // Get current color based on palette and index
+  const getCurrentColor = useCallback(() => {
+    const palette = PALETTES.find(p => p.id === activePaletteId) || PALETTES[0];
+    return palette.colors[colorIndexRef.current % palette.colors.length];
+  }, [activePaletteId]);
+
+  const handleClear = () => {
+    physicsRef.current?.clearWorld();
+    autoTypeIndexRef.current = 0;
+    
+    // Reset anchor on clear to return to random distribution
+    cursorAnchorRef.current = null;
+    cursorYRef.current = DEFAULT_DROP_Y;
+    
+    resetCursorForNewWord();
+    
+    // Refocus input
+    inputRef.current?.focus();
+  };
+
+  const handleAIRequest = async (topic: string) => {
+    setIsGenerating(true);
+    // Stop auto-typing if user requests manual AI gen
+    setIsAutoTyping(false);
+    try {
+      const text = await generateCreativeText(topic);
+      streamTextDrop(text);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleRegeneratePoem = async () => {
+    setIsGenerating(true);
+    try {
+        const newPoem = await generateFallingPoem();
+        if (newPoem) {
+            setAutoText(newPoem);
+            autoTypeIndexRef.current = 0;
+        }
+    } catch (e) {
+        console.error("Failed to regenerate poem:", e);
+    } finally {
+        setIsGenerating(false);
+    }
+  };
+
+  const toggleAutoType = () => {
+    setIsAutoTyping(!isAutoTyping);
+    if (!isAutoTyping) {
+        inputRef.current?.focus();
+    }
+  };
+  
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    // Ignore clicks on controls (buttons, inputs, or the settings panel)
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input') || target.closest('.settings-panel')) return;
+
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    cursorAnchorRef.current = { x, y };
+    cursorXRef.current = x;
+    cursorYRef.current = y;
+    
+    setClickIndicator({ x, y, id: Date.now() });
+    
+    // Keep focus for typing
+    inputRef.current?.focus();
+    
+    // Reset timer to treat next char as immediate
+    lastTypeTimeRef.current = Date.now();
+  };
+
+  // Helper to position cursor for next word
+  const resetCursorForNewWord = () => {
+      // Cycle color for new word
+      colorIndexRef.current += 1;
+
+      if (cursorAnchorRef.current) {
+          cursorXRef.current = cursorAnchorRef.current.x;
+          cursorYRef.current = cursorAnchorRef.current.y;
+      } else {
+          // Default random behavior if no click set
+          const width = window.innerWidth;
+          const minX = width * 0.1;
+          const maxX = width * 0.7; 
+          cursorXRef.current = minX + Math.random() * (maxX - minX);
+          cursorYRef.current = DEFAULT_DROP_Y;
+      }
+  };
+
+  // Auto-Type Effect Loop
+  useEffect(() => {
+    if (!isAutoTyping) {
+        if (autoTypeTimeoutRef.current) {
+            clearTimeout(autoTypeTimeoutRef.current);
+        }
+        return;
+    }
+
+    const typeNextChar = () => {
+        const width = window.innerWidth;
+        const text = autoText;
+        const char = text[autoTypeIndexRef.current % text.length];
+        
+        let delay = 60000 / (wpm * 6);
+        delay = delay * (0.8 + Math.random() * 0.4);
+
+        if (char === ' ' || char === '.' || char === ',') {
+            delay *= 2;
+        }
+        
+        // Line break / New word logic (timeout based)
+        if (autoTypeIndexRef.current === 0 || (Date.now() - lastTypeTimeRef.current > WORD_PAUSE_MS)) {
+             resetCursorForNewWord();
+        }
+
+        // Check wrapping
+        if (cursorXRef.current > width * 0.9) {
+            resetCursorForNewWord();
+            delay += 400;
+        }
+
+        if (physicsRef.current) {
+            if (char !== ' ' && char !== '\n' && char !== '\r') {
+                physicsRef.current.addText(char, cursorXRef.current, cursorYRef.current, getCurrentColor());
+                physicsRef.current.pruneBodies(maxParticles);
+                // Only advance cursor after placing a letter
+                cursorXRef.current += CHAR_SPACING;
+            } else {
+                // If it's a space or newline, we reset the cursor to the start position (anchor or random)
+                // This ensures each new word starts from the origin point.
+                resetCursorForNewWord();
+            }
+        }
+
+        lastTypeTimeRef.current = Date.now();
+        autoTypeIndexRef.current = autoTypeIndexRef.current + 1;
+
+        autoTypeTimeoutRef.current = setTimeout(typeNextChar, delay);
+    };
+
+    typeNextChar();
+
+    return () => {
+        if (autoTypeTimeoutRef.current) {
+            clearTimeout(autoTypeTimeoutRef.current);
+        }
+    };
+  }, [isAutoTyping, wpm, maxParticles, autoText, getCurrentColor]);
+
+
+  // One-off AI streaming
+  const streamTextDrop = async (text: string) => {
+    const width = window.innerWidth;
+    
+    resetCursorForNewWord();
+    lastTypeTimeRef.current = Date.now();
+
+    const chars = text.split('');
+
+    for (const char of chars) {
+      if (!physicsRef.current) break;
+
+      if (cursorXRef.current > width * 0.85) {
+        resetCursorForNewWord();
+        await new Promise(r => setTimeout(r, 400));
+      }
+
+      if (char === ' ') {
+        cursorXRef.current += CHAR_SPACING * 0.8;
+        await new Promise(r => setTimeout(r, 100));
+        continue;
+      }
+
+      await new Promise(r => setTimeout(r, 40 + Math.random() * 40));
+      
+      if (physicsRef.current) {
+        physicsRef.current.addText(char, cursorXRef.current, cursorYRef.current, getCurrentColor());
+        physicsRef.current.pruneBodies(maxParticles);
+        cursorXRef.current += CHAR_SPACING;
+        lastTypeTimeRef.current = Date.now();
+      }
+    }
+  };
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' && target.id !== 'hidden-type-input') return;
+    
+    // Prevent double-typing: If we are focused on the hidden input, 
+    // let the onChange event handle single characters.
+    if (target.id === 'hidden-type-input' && e.key.length === 1) return;
+    
+    const now = Date.now();
+    const width = window.innerWidth;
+
+    if (e.key === 'Enter') {
+        lastTypeTimeRef.current = 0; 
+        return;
+    }
+
+    if (now - lastTypeTimeRef.current > WORD_PAUSE_MS) {
+        resetCursorForNewWord();
+    }
+
+    if (cursorXRef.current > width * 0.9) {
+         resetCursorForNewWord();
+    }
+
+    if (physicsRef.current) {
+         if (e.key.length === 1) {
+            if (e.key === ' ') {
+                 cursorXRef.current += CHAR_SPACING;
+            } else {
+                 physicsRef.current.addText(e.key, cursorXRef.current, cursorYRef.current, getCurrentColor());
+                 physicsRef.current.pruneBodies(maxParticles);
+                 cursorXRef.current += CHAR_SPACING;
+            }
+            lastTypeTimeRef.current = now;
+         }
+    }
+  }, [maxParticles, getCurrentColor]); 
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (val.length > 0) {
+        const char = val.slice(-1);
+        const now = Date.now();
+        const width = window.innerWidth;
+        
+        if (now - lastTypeTimeRef.current > WORD_PAUSE_MS) {
+             resetCursorForNewWord();
+        }
+        
+        if (cursorXRef.current > width * 0.9) resetCursorForNewWord();
+
+        if (char === ' ') {
+            cursorXRef.current += CHAR_SPACING;
+        } else {
+            physicsRef.current?.addText(char, cursorXRef.current, cursorYRef.current, getCurrentColor());
+            physicsRef.current?.pruneBodies(maxParticles);
+            cursorXRef.current += CHAR_SPACING;
+        }
+        lastTypeTimeRef.current = now;
+        e.target.value = '';
+    }
+  };
+
+  const toggleKeyboard = () => {
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div 
+        className="relative w-full h-screen overflow-hidden bg-stone-100 selection:bg-orange-200 selection:text-orange-900"
+        onClick={handleCanvasClick}
+    >
+      <PhysicsWorld ref={physicsRef} config={config} />
+
+      <div className="absolute top-6 left-6 pointer-events-none select-none z-10">
+        <h1 className="font-['Courier_Prime'] text-4xl font-bold text-stone-800 tracking-tighter">
+          Wordfall
+        </h1>
+        <p className="font-['Courier_Prime'] text-sm text-stone-500 mt-1 max-w-xs">
+          {isAutoTyping ? "Listening to the falling words..." : "Type to create. Click to set origin."}
+        </p>
+      </div>
+
+      <ControlPanel 
+        config={config}
+        onConfigChange={setConfig}
+        onClear={handleClear}
+        onGenerate={handleAIRequest}
+        isGenerating={isGenerating}
+        onToggleKeyboard={toggleKeyboard}
+        isAutoTyping={isAutoTyping}
+        onToggleAutoType={toggleAutoType}
+        wpm={wpm}
+        onWpmChange={setWpm}
+        maxParticles={maxParticles}
+        onMaxParticlesChange={setMaxParticles}
+        palettes={PALETTES}
+        activePaletteId={activePaletteId}
+        onPaletteChange={setActivePaletteId}
+        onRegeneratePoem={handleRegeneratePoem}
+      />
+
+      {clickIndicator && (
+        <div 
+            key={clickIndicator.id}
+            className="absolute w-8 h-8 border-2 border-stone-400 rounded-full animate-ping pointer-events-none z-20"
+            style={{ left: clickIndicator.x - 16, top: clickIndicator.y - 16 }}
+        />
+      )}
+
+      <input 
+        id="hidden-type-input"
+        ref={inputRef}
+        type="text" 
+        className="absolute opacity-0 top-0 left-0 w-1 h-1"
+        style={{ opacity: 0, position: 'absolute', zIndex: -1 }}
+        onChange={handleInputChange}
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+      />
+      
+      <div className="absolute bottom-6 left-0 w-full text-center pointer-events-none opacity-50 z-0">
+        <p className="font-['Courier_Prime'] text-xs text-stone-400">
+          powered by Gemini • built with React & Matter.js
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default App;
