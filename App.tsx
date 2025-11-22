@@ -62,6 +62,9 @@ function App() {
   
   // Auto-type settings
   const [isAutoTyping, setIsAutoTyping] = useState(false);
+  const [isPerformMode, setIsPerformMode] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  
   const [wpm, setWpm] = useState(50);
   const [maxParticles, setMaxParticles] = useState(300);
   const [autoText, setAutoText] = useState(FALLING_POEM);
@@ -126,8 +129,11 @@ function App() {
 
   // Mouse interaction for Zen Mode UI visibility
   const handleMouseMove = useCallback(() => {
-    if (!isZenMode) return;
+    if (!isZenMode && !isPerformMode) return;
     
+    // Only show UI on hover if NOT in perform mode (perform mode hides it strictly)
+    if (isPerformMode) return;
+
     setIsUiVisible(true);
     
     if (uiTimeoutRef.current) {
@@ -139,7 +145,7 @@ function App() {
             setIsUiVisible(false);
         }
     }, 2000); // Hide after 2 seconds of inactivity
-  }, [isZenMode]);
+  }, [isZenMode, isPerformMode]);
 
   // Get current color based on palette and index
   const getCurrentColor = useCallback(() => {
@@ -147,18 +153,75 @@ function App() {
     return paletteColors[colorIndexRef.current % paletteColors.length];
   }, [paletteColors, seedColor]);
 
-  const handleClear = () => {
+  // Helper to position cursor for next word
+  const resetCursorForNewWord = () => {
+      // Cycle color for new word
+      colorIndexRef.current += 1;
+      
+      // Change musical scale for new word
+      audioServiceRef.current.changeScale();
+
+      if (cursorAnchorRef.current) {
+          cursorXRef.current = cursorAnchorRef.current.x;
+          cursorYRef.current = cursorAnchorRef.current.y;
+      } else {
+          // Default random behavior if no click set
+          const width = window.innerWidth;
+          const minX = width * 0.1;
+          const maxX = width * 0.7; 
+          cursorXRef.current = minX + Math.random() * (maxX - minX);
+          cursorYRef.current = DEFAULT_DROP_Y;
+      }
+  };
+
+  const performClear = (resetAnchor: boolean) => {
     physicsRef.current?.clearWorld();
     autoTypeIndexRef.current = 0;
     
-    // Reset anchor on clear to return to random distribution
-    cursorAnchorRef.current = null;
-    cursorYRef.current = DEFAULT_DROP_Y;
+    if (resetAnchor) {
+        // Reset anchor on clear to return to random distribution
+        cursorAnchorRef.current = null;
+        cursorYRef.current = DEFAULT_DROP_Y;
+    }
     
     resetCursorForNewWord();
     
     // Refocus input
     inputRef.current?.focus();
+  };
+
+  const handleManualClear = () => {
+    performClear(true);
+  };
+  
+  const handleStartPerformance = () => {
+      // 1. Stop everything
+      setIsAutoTyping(false);
+      
+      // 2. Clear canvas and sound
+      // Pass false to keep the anchor point so performance plays at selected spot
+      performClear(false);
+      
+      // 3. Set Perform Mode (Locks UI, prepares logic)
+      setIsPerformMode(true);
+      setIsUiVisible(false); // Hide UI for recording
+
+      // 4. Start Countdown
+      let count = 3;
+      setCountdown(count);
+      
+      const interval = setInterval(() => {
+          count--;
+          if (count > 0) {
+              setCountdown(count);
+          } else {
+              clearInterval(interval);
+              setCountdown(null);
+              // 5. Start Single-Pass Auto Type
+              setIsAutoTyping(true);
+              audioServiceRef.current.init(); // Ensure audio is ready
+          }
+      }, 1000);
   };
 
   const handleRegeneratePoem = async () => {
@@ -181,6 +244,11 @@ function App() {
     if (!isAutoTyping) {
         inputRef.current?.focus();
         audioServiceRef.current.init(); // Ensure audio context is ready
+    }
+    // If user manually toggles while in perform mode, assume they want to cancel perform mode
+    if (isPerformMode) {
+        setIsPerformMode(false);
+        setIsUiVisible(true);
     }
   };
 
@@ -240,27 +308,6 @@ function App() {
     lastTypeTimeRef.current = Date.now();
   };
 
-  // Helper to position cursor for next word
-  const resetCursorForNewWord = () => {
-      // Cycle color for new word
-      colorIndexRef.current += 1;
-      
-      // Change musical scale for new word
-      audioServiceRef.current.changeScale();
-
-      if (cursorAnchorRef.current) {
-          cursorXRef.current = cursorAnchorRef.current.x;
-          cursorYRef.current = cursorAnchorRef.current.y;
-      } else {
-          // Default random behavior if no click set
-          const width = window.innerWidth;
-          const minX = width * 0.1;
-          const maxX = width * 0.7; 
-          cursorXRef.current = minX + Math.random() * (maxX - minX);
-          cursorYRef.current = DEFAULT_DROP_Y;
-      }
-  };
-
   const handleCollision = useCallback(() => {
     audioServiceRef.current.playCollisionSound();
   }, []);
@@ -275,8 +322,19 @@ function App() {
     }
 
     const typeNextChar = () => {
-        const width = window.innerWidth;
         const text = autoText;
+        
+        // --- Perform Mode Logic: Stop at end ---
+        if (isPerformMode && autoTypeIndexRef.current >= text.length) {
+            setIsAutoTyping(false);
+            setIsPerformMode(false);
+            // Optionally bring UI back after a moment so user can finish recording
+            setTimeout(() => setIsUiVisible(true), 2000); 
+            return; 
+        }
+        // ---------------------------------------
+        
+        const width = window.innerWidth;
         const char = text[autoTypeIndexRef.current % text.length];
         
         // Dynamic spacing: Ensure visually legible (at least 1x) but respect wider bodies if spacing > 1
@@ -327,7 +385,7 @@ function App() {
             clearTimeout(autoTypeTimeoutRef.current);
         }
     };
-  }, [isAutoTyping, wpm, maxParticles, autoText, getCurrentColor, config.fontSize, config.spacing]);
+  }, [isAutoTyping, wpm, maxParticles, autoText, getCurrentColor, config.fontSize, config.spacing, isPerformMode]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const target = e.target as HTMLElement;
@@ -339,6 +397,12 @@ function App() {
     
     // Init audio on key press
     audioServiceRef.current.init();
+    
+    // If we type manually during perform mode, cancel perform mode
+    if (isPerformMode) {
+        setIsPerformMode(false);
+        setIsUiVisible(true);
+    }
 
     const now = Date.now();
     const width = window.innerWidth;
@@ -372,7 +436,7 @@ function App() {
             lastTypeTimeRef.current = now;
          }
     }
-  }, [maxParticles, getCurrentColor, config.fontSize, config.spacing]); 
+  }, [maxParticles, getCurrentColor, config.fontSize, config.spacing, isPerformMode]); 
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -410,8 +474,8 @@ function App() {
   };
   
   // Combined class logic for UI visibility
-  const uiOpacityClass = isZenMode && !isUiVisible ? 'opacity-0 pointer-events-none' : 'opacity-100';
-  const footerOpacityClass = isZenMode && !isUiVisible ? 'opacity-0' : 'opacity-50';
+  const uiOpacityClass = (isZenMode || isPerformMode) && !isUiVisible ? 'opacity-0 pointer-events-none' : 'opacity-100';
+  const footerOpacityClass = (isZenMode || isPerformMode) && !isUiVisible ? 'opacity-0' : 'opacity-50';
 
   return (
     <div 
@@ -439,7 +503,7 @@ function App() {
           <ControlPanel 
             config={config}
             onConfigChange={setConfig}
-            onClear={handleClear}
+            onClear={handleManualClear}
             isGenerating={isGenerating}
             isAutoTyping={isAutoTyping}
             onToggleAutoType={toggleAutoType}
@@ -459,6 +523,7 @@ function App() {
             onFontChange={setCurrentFont}
             
             onRegeneratePoem={handleRegeneratePoem}
+            onStartPerformance={handleStartPerformance}
             // View Props
             isFullscreen={isFullscreen}
             onToggleFullscreen={toggleFullscreen}
@@ -476,6 +541,15 @@ function App() {
             className="absolute w-8 h-8 border-2 border-stone-400 rounded-full animate-ping pointer-events-none z-20"
             style={{ left: clickIndicator.x - 16, top: clickIndicator.y - 16 }}
         />
+      )}
+
+      {/* Countdown Overlay */}
+      {countdown !== null && (
+          <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
+              <span className="text-9xl font-bold text-stone-800 animate-ping" style={{ fontFamily: 'Courier Prime' }}>
+                  {countdown}
+              </span>
+          </div>
       )}
 
       <input 

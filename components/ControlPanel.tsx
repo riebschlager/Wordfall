@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { PhysicsConfig, SchemeMode } from '../types';
-import { Settings2, Trash2, Play, Pause, Palette, RefreshCw, Maximize2, Minimize2, Eye, EyeOff, Type, MoveHorizontal, Volume2, VolumeX } from 'lucide-react';
+import { Settings2, Trash2, Play, Pause, Palette, RefreshCw, Maximize2, Minimize2, Eye, EyeOff, Type, MoveHorizontal, Volume2, VolumeX, Clapperboard } from 'lucide-react';
 
 interface FontOption {
     name: string;
@@ -33,6 +33,9 @@ interface ControlPanelProps {
   onFontChange: (font: string) => void;
 
   onRegeneratePoem: () => void;
+  
+  // Perform Mode
+  onStartPerformance: () => void;
 
   // View Props
   isFullscreen: boolean;
@@ -65,6 +68,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     currentFont,
     onFontChange,
     onRegeneratePoem,
+    onStartPerformance,
     isFullscreen,
     onToggleFullscreen,
     isZenMode,
@@ -82,6 +86,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     <div className="fixed top-4 right-4 z-50 flex flex-col items-end gap-2 pointer-events-none control-panel-container">
       {/* Floating Action Buttons */}
       <div className="flex gap-2 pointer-events-auto">
+        <button 
+            onClick={onStartPerformance}
+            className="p-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all text-stone-700 border border-stone-200"
+            title="Perform Mode (Record)"
+        >
+            <Clapperboard size={20} />
+        </button>
+
+        <div className="w-px h-10 bg-stone-300 mx-1 opacity-50" />
+
         <button 
             onClick={onToggleZenMode}
             className={`p-3 rounded-full shadow-lg transition-all border border-stone-200 ${
