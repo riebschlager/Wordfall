@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PhysicsConfig, SchemeMode } from '../types';
-import { Settings2, Trash2, Keyboard, Play, Pause, Palette, RefreshCw, Maximize2, Minimize2, Eye, EyeOff, Type } from 'lucide-react';
+import { Settings2, Trash2, Play, Pause, Palette, RefreshCw, Maximize2, Minimize2, Eye, EyeOff, Type } from 'lucide-react';
 
 interface FontOption {
     name: string;
@@ -12,7 +12,6 @@ interface ControlPanelProps {
   onConfigChange: (newConfig: PhysicsConfig) => void;
   onClear: () => void;
   isGenerating: boolean;
-  onToggleKeyboard: () => void;
   isAutoTyping: boolean;
   onToggleAutoType: () => void;
   wpm: number;
@@ -46,7 +45,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onConfigChange, 
     onClear, 
     isGenerating,
-    onToggleKeyboard,
     isAutoTyping,
     onToggleAutoType,
     wpm,
@@ -105,14 +103,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             title={isAutoTyping ? "Pause Auto-Type" : "Start Auto-Type Poem"}
         >
             {isAutoTyping ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
-        </button>
-
-        <button 
-            onClick={onToggleKeyboard}
-            className="p-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all text-stone-700 border border-stone-200 lg:hidden"
-            aria-label="Toggle Keyboard"
-        >
-            <Keyboard size={20} />
         </button>
 
         <button 

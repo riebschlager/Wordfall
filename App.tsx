@@ -369,10 +369,6 @@ function App() {
         e.target.value = '';
     }
   };
-
-  const toggleKeyboard = () => {
-    inputRef.current?.focus();
-  };
   
   // Combined class logic for UI visibility
   const uiOpacityClass = isZenMode && !isUiVisible ? 'opacity-0 pointer-events-none' : 'opacity-100';
@@ -401,7 +397,6 @@ function App() {
             onConfigChange={setConfig}
             onClear={handleClear}
             isGenerating={isGenerating}
-            onToggleKeyboard={toggleKeyboard}
             isAutoTyping={isAutoTyping}
             onToggleAutoType={toggleAutoType}
             wpm={wpm}
