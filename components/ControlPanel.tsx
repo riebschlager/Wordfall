@@ -100,7 +100,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             
             <div className="flex flex-col gap-3 mb-6">
                 <div className="flex gap-2 items-center">
-                    <div className="relative overflow-hidden rounded-lg shadow-sm border border-stone-200 w-12 h-10 shrink-0">
+                    <div className="relative overflow-hidden rounded-lg shadow-sm border border-stone-200 w-12 h-10 shrink-0 bg-stone-100">
                          <input 
                             type="color" 
                             value={seedColor}
@@ -112,7 +112,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <select 
                         value={schemeMode}
                         onChange={(e) => onSchemeModeChange(e.target.value as SchemeMode)}
-                        className="flex-1 h-10 rounded-lg border border-stone-200 bg-stone-50 text-xs px-2 focus:outline-none focus:ring-2 focus:ring-stone-800 cursor-pointer"
+                        className="flex-1 h-10 rounded-lg border border-stone-200 bg-white text-stone-800 text-sm px-3 focus:outline-none focus:ring-2 focus:ring-stone-800 cursor-pointer appearance-auto"
                     >
                          <option value="monochrome">Monochrome</option>
                          <option value="monochrome-dark">Mono Dark</option>
