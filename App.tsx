@@ -256,8 +256,9 @@ function App() {
         const width = window.innerWidth;
         const text = autoText;
         const char = text[autoTypeIndexRef.current % text.length];
-        // Dynamic spacing based on font size AND spacing configuration
-        const charSpacing = config.fontSize * 0.7 * config.spacing; 
+        
+        // Dynamic spacing: Ensure visually legible (at least 1x) but respect wider bodies if spacing > 1
+        const charSpacing = config.fontSize * 0.7 * Math.max(1, config.spacing);
 
         let delay = 60000 / (wpm * 6);
         delay = delay * (0.8 + Math.random() * 0.4);
@@ -315,8 +316,9 @@ function App() {
     
     const now = Date.now();
     const width = window.innerWidth;
-    // Dynamic spacing based on font size AND spacing configuration
-    const charSpacing = config.fontSize * 0.7 * config.spacing; 
+    
+    // Dynamic spacing: Ensure visually legible (at least 1x) but respect wider bodies if spacing > 1
+    const charSpacing = config.fontSize * 0.7 * Math.max(1, config.spacing);
 
     if (e.key === 'Enter') {
         lastTypeTimeRef.current = 0; 
@@ -356,8 +358,9 @@ function App() {
         const char = val.slice(-1);
         const now = Date.now();
         const width = window.innerWidth;
-        // Dynamic spacing based on font size AND spacing configuration
-        const charSpacing = config.fontSize * 0.7 * config.spacing; 
+        
+        // Dynamic spacing: Ensure visually legible (at least 1x) but respect wider bodies if spacing > 1
+        const charSpacing = config.fontSize * 0.7 * Math.max(1, config.spacing);
         
         if (now - lastTypeTimeRef.current > WORD_PAUSE_MS) {
              resetCursorForNewWord();

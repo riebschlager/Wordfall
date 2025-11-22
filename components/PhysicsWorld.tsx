@@ -56,7 +56,8 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
 
       for (const char of text) {
         if (char === ' ') {
-            offsetX += fontSize * 0.6 * spacing;
+            // Ensure spaces also respect the minimum visual width so we don't collapse spaces when spacing is low
+            offsetX += fontSize * 0.6 * Math.max(1, spacing);
             continue;
         }
 
@@ -83,7 +84,9 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         (body as any).createdAt = Date.now();
         
         Matter.World.add(world, body);
-        offsetX += fontSize * 0.7 * spacing; // Spacing between letters
+        // Use Math.max(1, spacing) to ensure we always advance at least the visual width of the letter,
+        // even if the physics body is tiny (low spacing).
+        offsetX += fontSize * 0.7 * Math.max(1, spacing); 
       }
     },
     clearWorld: () => {
