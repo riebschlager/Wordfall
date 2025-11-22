@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PhysicsConfig, SchemeMode } from '../types';
-import { Settings2, Trash2, Keyboard, Play, Pause, Palette, RefreshCw } from 'lucide-react';
+import { Settings2, Trash2, Keyboard, Play, Pause, Palette, RefreshCw, Maximize2, Minimize2, Eye, EyeOff } from 'lucide-react';
 
 interface ControlPanelProps {
   config: PhysicsConfig;
@@ -23,6 +23,12 @@ interface ControlPanelProps {
   currentPalette: string[];
   
   onRegeneratePoem: () => void;
+
+  // View Props
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
+  isZenMode: boolean;
+  onToggleZenMode: () => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({ 
@@ -42,7 +48,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     schemeMode,
     onSchemeModeChange,
     currentPalette,
-    onRegeneratePoem
+    onRegeneratePoem,
+    isFullscreen,
+    onToggleFullscreen,
+    isZenMode,
+    onToggleZenMode
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -54,6 +64,26 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     <div className="fixed top-4 right-4 z-50 flex flex-col items-end gap-2 pointer-events-none control-panel-container">
       {/* Floating Action Buttons */}
       <div className="flex gap-2 pointer-events-auto">
+        <button 
+            onClick={onToggleZenMode}
+            className={`p-3 rounded-full shadow-lg transition-all border border-stone-200 ${
+                isZenMode ? 'bg-stone-800 text-white' : 'bg-white/80 backdrop-blur-sm text-stone-700 hover:bg-white'
+            }`}
+            title={isZenMode ? "Exit Zen Mode" : "Enter Zen Mode"}
+        >
+            {isZenMode ? <EyeOff size={20} /> : <Eye size={20} />}
+        </button>
+
+        <button 
+            onClick={onToggleFullscreen}
+            className="p-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all text-stone-700 border border-stone-200"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+        >
+            {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+        </button>
+
+        <div className="w-px h-10 bg-stone-300 mx-1 opacity-50" />
+
         <button 
             onClick={onToggleAutoType}
             className={`p-3 rounded-full shadow-lg transition-all border border-stone-200 flex items-center justify-center ${
@@ -85,6 +115,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             className={`p-3 rounded-full shadow-lg transition-all border border-stone-200 ${
                 isOpen ? 'bg-stone-800 text-white' : 'bg-white/80 backdrop-blur-sm text-stone-700 hover:bg-white'
             }`}
+            title="Settings"
         >
             <Settings2 size={20} />
         </button>
@@ -100,7 +131,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             
             <div className="flex flex-col gap-3 mb-6">
                 <div className="flex gap-2 items-center">
-                    <div className="relative overflow-hidden rounded-lg shadow-sm border border-stone-200 w-12 h-10 shrink-0 bg-stone-100">
+                    <div className="relative overflow-hidden rounded-lg shadow-sm border border-stone-200 w-12 h-10 shrink-0 bg-white">
                          <input 
                             type="color" 
                             value={seedColor}

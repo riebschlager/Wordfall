@@ -48,6 +48,12 @@ function App() {
   const [autoText, setAutoText] = useState(FALLING_POEM);
   const [clickIndicator, setClickIndicator] = useState<{x: number, y: number, id: number} | null>(null);
   
+  // View settings
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isZenMode, setIsZenMode] = useState(false);
+  const [isUiVisible, setIsUiVisible] = useState(true);
+  const uiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const physicsRef = useRef<PhysicsWorldHandle>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -64,6 +70,15 @@ function App() {
   // Focus the hidden input on load for immediate typing
   useEffect(() => {
     inputRef.current?.focus();
+  }, []);
+
+  // Handle Fullscreen Changes via Standard API
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
   // Fetch Color Scheme when Seed or Mode changes
@@ -85,6 +100,23 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [clickIndicator]);
+
+  // Mouse interaction for Zen Mode UI visibility
+  const handleMouseMove = useCallback(() => {
+    if (!isZenMode) return;
+    
+    setIsUiVisible(true);
+    
+    if (uiTimeoutRef.current) {
+        clearTimeout(uiTimeoutRef.current);
+    }
+    
+    uiTimeoutRef.current = setTimeout(() => {
+        if (isZenMode) {
+            setIsUiVisible(false);
+        }
+    }, 2000); // Hide after 2 seconds of inactivity
+  }, [isZenMode]);
 
   // Get current color based on palette and index
   const getCurrentColor = useCallback(() => {
@@ -125,6 +157,33 @@ function App() {
     setIsAutoTyping(!isAutoTyping);
     if (!isAutoTyping) {
         inputRef.current?.focus();
+    }
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.error(`Error attempting to enable fullscreen: ${err.message}`);
+        });
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+  };
+
+  const toggleZenMode = () => {
+    const nextMode = !isZenMode;
+    setIsZenMode(nextMode);
+    setIsUiVisible(true); // Ensure UI is visible when toggling
+    
+    // If entering Zen Mode, start the timeout immediately
+    if (nextMode) {
+         if (uiTimeoutRef.current) clearTimeout(uiTimeoutRef.current);
+         uiTimeoutRef.current = setTimeout(() => setIsUiVisible(false), 2000);
+    } else {
+        // If exiting Zen Mode, clear timeout and keep visible
+        if (uiTimeoutRef.current) clearTimeout(uiTimeoutRef.current);
     }
   };
   
@@ -298,15 +357,19 @@ function App() {
   const toggleKeyboard = () => {
     inputRef.current?.focus();
   };
+  
+  // Combined class logic for UI visibility
+  const uiOpacityClass = isZenMode && !isUiVisible ? 'opacity-0 pointer-events-none' : 'opacity-100';
 
   return (
     <div 
         className="relative w-full h-screen overflow-hidden bg-stone-100 selection:bg-orange-200 selection:text-orange-900"
         onClick={handleCanvasClick}
+        onMouseMove={handleMouseMove}
     >
       <PhysicsWorld ref={physicsRef} config={config} />
 
-      <div className="absolute top-6 left-6 pointer-events-none select-none z-10">
+      <div className={`absolute top-6 left-6 pointer-events-none select-none z-10 transition-opacity duration-500 ${uiOpacityClass}`}>
         <h1 className="font-['Courier_Prime'] text-4xl font-bold text-stone-800 tracking-tighter">
           Wordfall
         </h1>
@@ -315,26 +378,33 @@ function App() {
         </p>
       </div>
 
-      <ControlPanel 
-        config={config}
-        onConfigChange={setConfig}
-        onClear={handleClear}
-        isGenerating={isGenerating}
-        onToggleKeyboard={toggleKeyboard}
-        isAutoTyping={isAutoTyping}
-        onToggleAutoType={toggleAutoType}
-        wpm={wpm}
-        onWpmChange={setWpm}
-        maxParticles={maxParticles}
-        onMaxParticlesChange={setMaxParticles}
-        // Palette Props
-        seedColor={seedColor}
-        onSeedColorChange={setSeedColor}
-        schemeMode={schemeMode}
-        onSchemeModeChange={setSchemeMode}
-        currentPalette={paletteColors}
-        onRegeneratePoem={handleRegeneratePoem}
-      />
+      <div className={`transition-opacity duration-500 ${uiOpacityClass}`}>
+          <ControlPanel 
+            config={config}
+            onConfigChange={setConfig}
+            onClear={handleClear}
+            isGenerating={isGenerating}
+            onToggleKeyboard={toggleKeyboard}
+            isAutoTyping={isAutoTyping}
+            onToggleAutoType={toggleAutoType}
+            wpm={wpm}
+            onWpmChange={setWpm}
+            maxParticles={maxParticles}
+            onMaxParticlesChange={setMaxParticles}
+            // Palette Props
+            seedColor={seedColor}
+            onSeedColorChange={setSeedColor}
+            schemeMode={schemeMode}
+            onSchemeModeChange={setSchemeMode}
+            currentPalette={paletteColors}
+            onRegeneratePoem={handleRegeneratePoem}
+            // View Props
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={toggleFullscreen}
+            isZenMode={isZenMode}
+            onToggleZenMode={toggleZenMode}
+          />
+      </div>
 
       {clickIndicator && (
         <div 
@@ -356,7 +426,7 @@ function App() {
         autoCapitalize="off"
       />
       
-      <div className="absolute bottom-6 left-0 w-full text-center pointer-events-none opacity-50 z-0">
+      <div className={`absolute bottom-6 left-0 w-full text-center pointer-events-none opacity-50 z-0 transition-opacity duration-500 ${uiOpacityClass}`}>
         <p className="font-['Courier_Prime'] text-xs text-stone-400">
           powered by Gemini • built with React & Matter.js
         </p>
