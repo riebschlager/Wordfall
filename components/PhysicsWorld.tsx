@@ -266,13 +266,17 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
     const handleResize = () => {
         const width = window.innerWidth;
         const height = window.innerHeight;
+        const pixelRatio = window.devicePixelRatio || 1;
 
-        // Update Canvas and Render sizing
-        render.canvas.width = width;
-        render.canvas.height = height;
+        // Update Canvas and Render sizing correctly for High DPI
+        render.canvas.width = width * pixelRatio;
+        render.canvas.height = height * pixelRatio;
+        render.canvas.style.width = `${width}px`;
+        render.canvas.style.height = `${height}px`;
+
         render.options.width = width;
         render.options.height = height;
-        render.options.pixelRatio = window.devicePixelRatio;
+        render.options.pixelRatio = pixelRatio;
 
         // Update bounds to match new viewport
         render.bounds.min.x = 0;
@@ -294,11 +298,19 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         
         // Push back any letters that might be out of bounds
         bodies.forEach(b => {
-            if (b.position.x > width - 20) {
-                Matter.Body.setPosition(b, { x: width - 50, y: b.position.y });
-            }
-            if (b.position.y > height - 20) {
-                Matter.Body.setPosition(b, { x: b.position.x, y: height - 100 });
+            // Reposition if outside bounds (allowing for some margin)
+            let newX = b.position.x;
+            let newY = b.position.y;
+            
+            if (newX > width - 20) newX = width - 50;
+            if (newX < 20) newX = 50;
+            // Ensure they don't fall through the new floor immediately
+            if (newY > height - 50) newY = height - 100; 
+            
+            if (newX !== b.position.x || newY !== b.position.y) {
+                Matter.Body.setPosition(b, { x: newX, y: newY });
+                Matter.Sleeping.set(b, false);
+                Matter.Body.setVelocity(b, { x: 0, y: 0 }); // Reset velocity to prevent glitching through walls
             }
         });
     };
