@@ -5,6 +5,7 @@ import { PhysicsConfig } from '../types';
 // Font configuration
 const FONT_FAMILY = '"Courier Prime", monospace';
 const BASE_FONT_SIZE = 48;
+const FADE_DURATION = 600; // ms for the fade-out animation
 
 interface PhysicsWorldProps {
   config: PhysicsConfig;
@@ -64,7 +65,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         // Attach custom data for rendering
         (body as any).char = char;
         (body as any).color = color;
-        (body as any).createdAt = Date.now(); // Track creation time for pruning if needed
+        (body as any).createdAt = Date.now();
         
         Matter.World.add(world, body);
         offsetX += BASE_FONT_SIZE * 0.7; // Spacing between letters
@@ -80,15 +81,21 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
     pruneBodies: (maxCount: number) => {
       if (!engineRef.current) return;
       const world = engineRef.current.world;
-      // Get all letter bodies
-      const letterBodies = world.bodies.filter(b => b.label === 'letter');
+      // Get all letter bodies that are NOT currently dying
+      const activeBodies = world.bodies.filter(b => b.label === 'letter' && !(b as any).isDying);
       
-      // If we have too many, remove the oldest ones
+      // If we have too many, mark the oldest ones for death
       // Matter.js usually adds new bodies to the end of the array, so index 0 is oldest
-      if (letterBodies.length > maxCount) {
-        const countToRemove = letterBodies.length - maxCount;
-        const bodiesToRemove = letterBodies.slice(0, countToRemove);
-        Matter.World.remove(world, bodiesToRemove);
+      if (activeBodies.length > maxCount) {
+        const countToRemove = activeBodies.length - maxCount;
+        const bodiesToMark = activeBodies.slice(0, countToRemove);
+        
+        bodiesToMark.forEach(body => {
+          (body as any).isDying = true;
+          (body as any).dyingSince = Date.now();
+          // Optional: Remove collision immediately so new letters don't pile on invisible ones?
+          // Currently keeping collision so the stack doesn't collapse weirdly while fading.
+        });
       }
     }
   }));
@@ -176,10 +183,31 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
     Matter.Runner.run(runner, engine);
     Matter.Render.run(render);
 
-    // 6. Custom Rendering Hook for Text
+    // 6. Cleanup Logic (Run before physics update)
+    Matter.Events.on(engine, 'beforeUpdate', () => {
+        const now = Date.now();
+        const bodies = Matter.Composite.allBodies(engine.world);
+        const bodiesToRemove: Matter.Body[] = [];
+
+        bodies.forEach(body => {
+            if ((body as any).isDying) {
+                const elapsed = now - (body as any).dyingSince;
+                if (elapsed >= FADE_DURATION) {
+                    bodiesToRemove.push(body);
+                }
+            }
+        });
+
+        if (bodiesToRemove.length > 0) {
+            Matter.World.remove(engine.world, bodiesToRemove);
+        }
+    });
+
+    // 7. Custom Rendering Hook for Text
     Matter.Events.on(render, 'afterRender', () => {
         const ctx = render.context;
         const bodies = Matter.Composite.allBodies(engine.world);
+        const now = Date.now();
 
         ctx.font = `bold ${BASE_FONT_SIZE}px ${FONT_FAMILY}`;
         ctx.textAlign = 'center';
@@ -187,11 +215,29 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
 
         bodies.forEach(body => {
             if ((body as any).char) {
+                const isDying = (body as any).isDying;
+                let alpha = 1;
+                let scale = 1;
+
+                if (isDying) {
+                    const elapsed = now - (body as any).dyingSince;
+                    const progress = Math.min(1, elapsed / FADE_DURATION);
+                    alpha = 1 - progress;
+                    // Shrink slightly as it disappears
+                    scale = 1 - (progress * 0.4); 
+                }
+
+                if (alpha <= 0) return; // Don't draw if invisible
+
                 // Draw the letter
                 ctx.save();
                 ctx.translate(body.position.x, body.position.y);
                 ctx.rotate(body.angle);
                 
+                // Apply fade and shrink transforms
+                if (scale !== 1) ctx.scale(scale, scale);
+                ctx.globalAlpha = alpha;
+
                 // Use the specific color stored on the body, or default to dark stone
                 ctx.fillStyle = (body as any).color || '#292524';
 
@@ -207,7 +253,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         });
     });
 
-    // 7. Resize Handler
+    // 8. Resize Handler
     const handleResize = () => {
         render.canvas.width = window.innerWidth;
         render.canvas.height = window.innerHeight;
