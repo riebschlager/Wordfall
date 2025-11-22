@@ -360,6 +360,7 @@ function App() {
   
   // Combined class logic for UI visibility
   const uiOpacityClass = isZenMode && !isUiVisible ? 'opacity-0 pointer-events-none' : 'opacity-100';
+  const footerOpacityClass = isZenMode && !isUiVisible ? 'opacity-0' : 'opacity-50';
 
   return (
     <div 
@@ -426,7 +427,7 @@ function App() {
         autoCapitalize="off"
       />
       
-      <div className={`absolute bottom-6 left-0 w-full text-center pointer-events-none opacity-50 z-0 transition-opacity duration-500 ${uiOpacityClass}`}>
+      <div className={`absolute bottom-6 left-0 w-full text-center pointer-events-none z-0 transition-opacity duration-500 ${footerOpacityClass}`}>
         <p className="font-['Courier_Prime'] text-xs text-stone-400">
           powered by Gemini • built with React & Matter.js
         </p>
