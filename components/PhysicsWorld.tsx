@@ -26,8 +26,8 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
   const fontRef = useRef(fontFamily);
   const configRef = useRef(config);
   
-  // Track previous font size to handle scaling of existing bodies
-  const prevFontSizeRef = useRef(config.fontSize);
+  // Track previous effective size (fontSize * spacing) to handle scaling of existing bodies
+  const prevEffectiveSizeRef = useRef(config.fontSize * config.spacing);
 
   useEffect(() => {
     fontRef.current = fontFamily;
@@ -45,6 +45,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
       const world = engineRef.current.world;
       const width = sceneRef.current ? sceneRef.current.clientWidth : window.innerWidth;
       const fontSize = configRef.current.fontSize;
+      const spacing = configRef.current.spacing;
       
       // Calculate spawn position
       // If no X provided, randomize it
@@ -55,15 +56,15 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
 
       for (const char of text) {
         if (char === ' ') {
-            offsetX += fontSize * 0.6;
+            offsetX += fontSize * 0.6 * spacing;
             continue;
         }
 
         const body = Matter.Bodies.rectangle(
             safeX + offsetX, 
             safeY, 
-            fontSize * 0.6, // Approximate width
-            fontSize * 0.8, // Approximate height
+            fontSize * 0.6 * spacing, // Width scaled by spacing
+            fontSize * 0.8 * spacing, // Height scaled by spacing
             {
                 // Very slight random rotation for natural look, but small enough to keep words legible initially
                 angle: (Math.random() - 0.5) * 0.05, 
@@ -82,7 +83,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         (body as any).createdAt = Date.now();
         
         Matter.World.add(world, body);
-        offsetX += fontSize * 0.7; // Spacing between letters
+        offsetX += fontSize * 0.7 * spacing; // Spacing between letters
       }
     },
     clearWorld: () => {
@@ -117,12 +118,12 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
     if (engineRef.current) {
         engineRef.current.gravity.y = config.gravity;
 
-        const currentFontSize = config.fontSize;
-        const prevFontSize = prevFontSizeRef.current;
+        const currentEffectiveSize = config.fontSize * config.spacing;
+        const prevEffectiveSize = prevEffectiveSizeRef.current;
 
-        // Check if font size changed significantly to trigger scaling
-        if (Math.abs(currentFontSize - prevFontSize) > 0.1) {
-            const scaleFactor = currentFontSize / prevFontSize;
+        // Check if effective size (font * spacing) changed significantly to trigger scaling
+        if (Math.abs(currentEffectiveSize - prevEffectiveSize) > 0.1) {
+            const scaleFactor = currentEffectiveSize / prevEffectiveSize;
             
             engineRef.current.world.bodies.forEach(body => {
                 if (body.label === 'letter') {
@@ -130,7 +131,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
                 }
             });
             
-            prevFontSizeRef.current = currentFontSize;
+            prevEffectiveSizeRef.current = currentEffectiveSize;
         }
         
         // Update existing bodies properties
@@ -242,6 +243,8 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         const currentFontSize = configRef.current.fontSize;
 
         // Use the ref to get the current font family
+        // Note: We render text at fontSize, but the body size is fontSize * spacing.
+        // This allows user to have large text with small hitboxes or vice versa.
         ctx.font = `bold ${currentFontSize}px ${fontRef.current}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -280,7 +283,14 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
                 ctx.shadowOffsetX = 2;
                 ctx.shadowOffsetY = 2;
 
+                // Draw text centered at body position. 
+                // The body size might be different (controlled by spacing), but text draws at fontSize.
                 ctx.fillText((body as any).char, 0, 2); 
+                
+                // Debug: Draw bounding box if you want to see the effect of spacing
+                // ctx.strokeStyle = 'red';
+                // ctx.strokeRect(-configRef.current.fontSize * 0.6 * configRef.current.spacing / 2, -configRef.current.fontSize * 0.8 * configRef.current.spacing / 2, configRef.current.fontSize * 0.6 * configRef.current.spacing, configRef.current.fontSize * 0.8 * configRef.current.spacing);
+
                 ctx.restore();
             }
         });

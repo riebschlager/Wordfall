@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PhysicsConfig, SchemeMode } from '../types';
-import { Settings2, Trash2, Play, Pause, Palette, RefreshCw, Maximize2, Minimize2, Eye, EyeOff, Type } from 'lucide-react';
+import { Settings2, Trash2, Play, Pause, Palette, RefreshCw, Maximize2, Minimize2, Eye, EyeOff, Type, MoveHorizontal } from 'lucide-react';
 
 interface FontOption {
     name: string;
@@ -155,6 +155,23 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         onChange={(e) => handleRangeChange('fontSize', parseInt(e.target.value))}
                         className="w-full accent-stone-800 h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer"
                     />
+                </div>
+
+                <div>
+                    <div className="flex justify-between text-xs text-stone-600 mb-1">
+                        <span>Body Spacing</span>
+                        <span>{Math.round(config.spacing * 100)}%</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <MoveHorizontal size={14} className="text-stone-400" />
+                        <input 
+                            type="range" 
+                            min="0.2" max="1.5" step="0.1"
+                            value={config.spacing}
+                            onChange={(e) => handleRangeChange('spacing', parseFloat(e.target.value))}
+                            className="w-full accent-stone-800 h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer"
+                        />
+                    </div>
                 </div>
 
                 <p className="text-[10px] text-stone-400 text-center" style={{ fontFamily: currentFont.split(',')[0], fontSize: Math.max(12, Math.min(20, config.fontSize / 2)) }}>

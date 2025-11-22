@@ -10,7 +10,8 @@ const INITIAL_CONFIG: PhysicsConfig = {
   restitution: 0.6,
   friction: 0.5,
   scale: 1,
-  fontSize: 48, // Default font size
+  fontSize: 48,
+  spacing: 1.0, // Default spacing multiplier (100% of standard bbox)
 };
 
 const FONTS = [
@@ -255,7 +256,8 @@ function App() {
         const width = window.innerWidth;
         const text = autoText;
         const char = text[autoTypeIndexRef.current % text.length];
-        const charSpacing = config.fontSize * 0.7; // Dynamic spacing based on font size
+        // Dynamic spacing based on font size AND spacing configuration
+        const charSpacing = config.fontSize * 0.7 * config.spacing; 
 
         let delay = 60000 / (wpm * 6);
         delay = delay * (0.8 + Math.random() * 0.4);
@@ -301,7 +303,7 @@ function App() {
             clearTimeout(autoTypeTimeoutRef.current);
         }
     };
-  }, [isAutoTyping, wpm, maxParticles, autoText, getCurrentColor, config.fontSize]);
+  }, [isAutoTyping, wpm, maxParticles, autoText, getCurrentColor, config.fontSize, config.spacing]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const target = e.target as HTMLElement;
@@ -313,7 +315,8 @@ function App() {
     
     const now = Date.now();
     const width = window.innerWidth;
-    const charSpacing = config.fontSize * 0.7; // Dynamic spacing based on font size
+    // Dynamic spacing based on font size AND spacing configuration
+    const charSpacing = config.fontSize * 0.7 * config.spacing; 
 
     if (e.key === 'Enter') {
         lastTypeTimeRef.current = 0; 
@@ -340,7 +343,7 @@ function App() {
             lastTypeTimeRef.current = now;
          }
     }
-  }, [maxParticles, getCurrentColor, config.fontSize]); 
+  }, [maxParticles, getCurrentColor, config.fontSize, config.spacing]); 
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -353,7 +356,8 @@ function App() {
         const char = val.slice(-1);
         const now = Date.now();
         const width = window.innerWidth;
-        const charSpacing = config.fontSize * 0.7; // Dynamic spacing based on font size
+        // Dynamic spacing based on font size AND spacing configuration
+        const charSpacing = config.fontSize * 0.7 * config.spacing; 
         
         if (now - lastTypeTimeRef.current > WORD_PAUSE_MS) {
              resetCursorForNewWord();

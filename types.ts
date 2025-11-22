@@ -7,6 +7,7 @@ export interface PhysicsConfig {
   friction: number;
   scale: number;
   fontSize: number;
+  spacing: number;
 }
 
 export enum WallType {
