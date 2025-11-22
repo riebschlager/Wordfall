@@ -327,9 +327,13 @@ function App() {
         // --- Perform Mode Logic: Stop at end ---
         if (isPerformMode && autoTypeIndexRef.current >= text.length) {
             setIsAutoTyping(false);
-            setIsPerformMode(false);
-            // Optionally bring UI back after a moment so user can finish recording
-            setTimeout(() => setIsUiVisible(true), 2000); 
+            
+            // Wait 5 seconds before showing UI again to allow for clean recording tail
+            setTimeout(() => {
+                setIsPerformMode(false);
+                setIsUiVisible(true);
+            }, 5000);
+            
             return; 
         }
         // ---------------------------------------
