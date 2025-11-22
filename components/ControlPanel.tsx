@@ -88,21 +88,32 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <div className="settings-panel mt-2 p-6 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-stone-200 w-80 pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-200 max-h-[80vh] overflow-y-auto">
             
             <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Palette size={16} /> Colors
+                <Palette size={16} /> Color Palette
             </h3>
-            <div className="grid grid-cols-5 gap-2 mb-6">
+            <div className="grid grid-cols-2 gap-3 mb-6">
                 {palettes.map((palette) => (
-                    <button
-                        key={palette.id}
-                        onClick={() => onPaletteChange(palette.id)}
-                        className={`w-full aspect-square rounded-full shadow-sm border-2 transition-transform hover:scale-110 ${
-                            activePaletteId === palette.id ? 'border-stone-800 scale-110' : 'border-transparent'
-                        }`}
-                        title={palette.name}
-                        style={{
-                            background: `linear-gradient(135deg, ${palette.colors[0]}, ${palette.colors[Math.min(1, palette.colors.length-1)]})`
-                        }}
-                    />
+                    <div key={palette.id} className="group">
+                        <button
+                            onClick={() => onPaletteChange(palette.id)}
+                            className={`w-full h-8 rounded-lg flex overflow-hidden border-2 transition-all hover:scale-[1.02] active:scale-95 ${
+                                activePaletteId === palette.id 
+                                    ? 'border-stone-800 shadow-md scale-[1.02]' 
+                                    : 'border-stone-200 opacity-80 hover:opacity-100 hover:border-stone-300'
+                            }`}
+                            title={palette.name}
+                        >
+                            {palette.colors.map((color, idx) => (
+                                <div 
+                                    key={idx} 
+                                    className="flex-1 h-full" 
+                                    style={{ backgroundColor: color }} 
+                                />
+                            ))}
+                        </button>
+                        <div className={`text-[10px] font-medium text-stone-500 mt-1 ml-1 uppercase tracking-wider transition-opacity ${activePaletteId === palette.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'}`}>
+                            {palette.name}
+                        </div>
+                    </div>
                 ))}
             </div>
             

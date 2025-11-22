@@ -15,13 +15,43 @@ const WORD_PAUSE_MS = 600; // Time to wait before starting a new word position
 const CHAR_SPACING = 35;   // Horizontal space between falling letters
 const DEFAULT_DROP_Y = 100; // Default Vertical start position
 
+// ROY-G-BIV Palettes with Complementary Accents
 const PALETTES: ColorPalette[] = [
-  { id: 'monochrome', name: 'Ink', colors: ['#000000', '#1c1917', '#292524'] },
-  { id: 'bauhaus', name: 'Bauhaus', colors: ['#111827', '#dc2626', '#2563eb', '#d97706'] },
-  { id: 'vaporwave', name: 'Vapor', colors: ['#7c3aed', '#db2777', '#0891b2', '#4f46e5'] },
-  { id: 'retro', name: 'Retro', colors: ['#9f1239', '#0f766e', '#b45309', '#431407'] },
-  { id: 'comic', name: 'Comic', colors: ['#000000', '#ef4444', '#3b82f6', '#f59e0b'] },
-  { id: 'contrast', name: 'Bold', colors: ['#000000', '#be123c', '#1d4ed8', '#047857'] },
+  { 
+    id: 'red', 
+    name: 'Ruby', 
+    colors: ['#ef4444', '#991b1b', '#fecaca', '#0f766e'] // Red + Dark Red + Light Red + Teal
+  },
+  { 
+    id: 'orange', 
+    name: 'Amber', 
+    colors: ['#f97316', '#c2410c', '#fdba74', '#1e40af'] // Orange + Dark Orange + Light Orange + Deep Blue
+  },
+  { 
+    id: 'yellow', 
+    name: 'Gold', 
+    colors: ['#eab308', '#854d0e', '#fef08a', '#581c87'] // Yellow + Dark Gold + Light Yellow + Deep Purple
+  },
+  { 
+    id: 'green', 
+    name: 'Emerald', 
+    colors: ['#22c55e', '#14532d', '#86efac', '#be123c'] // Green + Dark Green + Light Green + Rose
+  },
+  { 
+    id: 'blue', 
+    name: 'Sapphire', 
+    colors: ['#3b82f6', '#1e3a8a', '#93c5fd', '#d97706'] // Blue + Navy + Light Blue + Amber
+  },
+  { 
+    id: 'indigo', 
+    name: 'Indigo', 
+    colors: ['#6366f1', '#312e81', '#c7d2fe', '#a3e635'] // Indigo + Deep Indigo + Light Indigo + Lime
+  },
+  { 
+    id: 'violet', 
+    name: 'Amethyst', 
+    colors: ['#a855f7', '#581c87', '#d8b4fe', '#facc15'] // Purple + Deep Purple + Light Purple + Yellow
+  }
 ];
 
 const FALLING_POEM = `To fall is not to fail, but to yield. 
@@ -43,7 +73,7 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   
   // Palette state
-  const [activePaletteId, setActivePaletteId] = useState<string>('monochrome');
+  const [activePaletteId, setActivePaletteId] = useState<string>('red');
   const colorIndexRef = useRef<number>(0);
   
   // Auto-type settings
