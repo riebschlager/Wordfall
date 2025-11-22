@@ -6,6 +6,7 @@ export interface PhysicsConfig {
   restitution: number; // Bounciness
   friction: number;
   scale: number;
+  fontSize: number;
 }
 
 export enum WallType {

@@ -132,7 +132,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <Type size={16} /> Typography
             </h3>
             
-            <div className="mb-6">
+            <div className="mb-6 space-y-4">
                  <select 
                     value={currentFont}
                     onChange={(e) => onFontChange(e.target.value)}
@@ -142,7 +142,22 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         <option key={font.name} value={font.value}>{font.name}</option>
                     ))}
                 </select>
-                <p className="text-[10px] text-stone-400 mt-2 text-center" style={{ fontFamily: currentFont.split(',')[0] }}>
+                
+                <div>
+                    <div className="flex justify-between text-xs text-stone-600 mb-1">
+                        <span>Size</span>
+                        <span>{config.fontSize}px</span>
+                    </div>
+                    <input 
+                        type="range" 
+                        min="24" max="128" step="4"
+                        value={config.fontSize}
+                        onChange={(e) => handleRangeChange('fontSize', parseInt(e.target.value))}
+                        className="w-full accent-stone-800 h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                </div>
+
+                <p className="text-[10px] text-stone-400 text-center" style={{ fontFamily: currentFont.split(',')[0], fontSize: Math.max(12, Math.min(20, config.fontSize / 2)) }}>
                     The quick brown fox jumps over the lazy dog.
                 </p>
             </div>

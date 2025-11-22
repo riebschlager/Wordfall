@@ -2,8 +2,6 @@ import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } f
 import Matter from 'matter-js';
 import { PhysicsConfig } from '../types';
 
-// Font configuration
-const BASE_FONT_SIZE = 48;
 const FADE_DURATION = 600; // ms for the fade-out animation
 
 interface PhysicsWorldProps {
@@ -24,13 +22,20 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
   const renderRef = useRef<Matter.Render | null>(null);
   const runnerRef = useRef<Matter.Runner | null>(null);
   
-  // Use a ref for font family so the render loop can access the latest value
-  // without needing to recreate the engine/render loop
+  // Use refs so render loop and imperative handle can access latest props
   const fontRef = useRef(fontFamily);
+  const configRef = useRef(config);
+  
+  // Track previous font size to handle scaling of existing bodies
+  const prevFontSizeRef = useRef(config.fontSize);
 
   useEffect(() => {
     fontRef.current = fontFamily;
   }, [fontFamily]);
+
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
   
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
@@ -39,6 +44,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
       
       const world = engineRef.current.world;
       const width = sceneRef.current ? sceneRef.current.clientWidth : window.innerWidth;
+      const fontSize = configRef.current.fontSize;
       
       // Calculate spawn position
       // If no X provided, randomize it
@@ -49,20 +55,20 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
 
       for (const char of text) {
         if (char === ' ') {
-            offsetX += BASE_FONT_SIZE * 0.6;
+            offsetX += fontSize * 0.6;
             continue;
         }
 
         const body = Matter.Bodies.rectangle(
             safeX + offsetX, 
             safeY, 
-            BASE_FONT_SIZE * 0.6, // Approximate width
-            BASE_FONT_SIZE * 0.8, // Approximate height
+            fontSize * 0.6, // Approximate width
+            fontSize * 0.8, // Approximate height
             {
                 // Very slight random rotation for natural look, but small enough to keep words legible initially
                 angle: (Math.random() - 0.5) * 0.05, 
-                restitution: config.restitution,
-                friction: config.friction,
+                restitution: configRef.current.restitution,
+                friction: configRef.current.friction,
                 render: {
                     fillStyle: 'transparent', 
                 },
@@ -76,7 +82,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         (body as any).createdAt = Date.now();
         
         Matter.World.add(world, body);
-        offsetX += BASE_FONT_SIZE * 0.7; // Spacing between letters
+        offsetX += fontSize * 0.7; // Spacing between letters
       }
     },
     clearWorld: () => {
@@ -110,6 +116,22 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
   useEffect(() => {
     if (engineRef.current) {
         engineRef.current.gravity.y = config.gravity;
+
+        const currentFontSize = config.fontSize;
+        const prevFontSize = prevFontSizeRef.current;
+
+        // Check if font size changed significantly to trigger scaling
+        if (Math.abs(currentFontSize - prevFontSize) > 0.1) {
+            const scaleFactor = currentFontSize / prevFontSize;
+            
+            engineRef.current.world.bodies.forEach(body => {
+                if (body.label === 'letter') {
+                    Matter.Body.scale(body, scaleFactor, scaleFactor);
+                }
+            });
+            
+            prevFontSizeRef.current = currentFontSize;
+        }
         
         // Update existing bodies properties
         engineRef.current.world.bodies.forEach(body => {
@@ -217,9 +239,10 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         const ctx = render.context;
         const bodies = Matter.Composite.allBodies(engine.world);
         const now = Date.now();
+        const currentFontSize = configRef.current.fontSize;
 
         // Use the ref to get the current font family
-        ctx.font = `bold ${BASE_FONT_SIZE}px ${fontRef.current}`;
+        ctx.font = `bold ${currentFontSize}px ${fontRef.current}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 

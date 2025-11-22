@@ -10,6 +10,7 @@ const INITIAL_CONFIG: PhysicsConfig = {
   restitution: 0.6,
   friction: 0.5,
   scale: 1,
+  fontSize: 48, // Default font size
 };
 
 const FONTS = [
@@ -26,7 +27,6 @@ const FONTS = [
 ];
 
 const WORD_PAUSE_MS = 600; // Time to wait before starting a new word position
-const CHAR_SPACING = 35;   // Horizontal space between falling letters
 const DEFAULT_DROP_Y = 100; // Default Vertical start position
 
 const FALLING_POEM = `To fall is not to fail, but to yield. 
@@ -255,7 +255,8 @@ function App() {
         const width = window.innerWidth;
         const text = autoText;
         const char = text[autoTypeIndexRef.current % text.length];
-        
+        const charSpacing = config.fontSize * 0.7; // Dynamic spacing based on font size
+
         let delay = 60000 / (wpm * 6);
         delay = delay * (0.8 + Math.random() * 0.4);
 
@@ -279,7 +280,7 @@ function App() {
                 physicsRef.current.addText(char, cursorXRef.current, cursorYRef.current, getCurrentColor());
                 physicsRef.current.pruneBodies(maxParticles);
                 // Only advance cursor after placing a letter
-                cursorXRef.current += CHAR_SPACING;
+                cursorXRef.current += charSpacing;
             } else {
                 // If it's a space or newline, we reset the cursor to the start position (anchor or random)
                 // This ensures each new word starts from the origin point.
@@ -300,7 +301,7 @@ function App() {
             clearTimeout(autoTypeTimeoutRef.current);
         }
     };
-  }, [isAutoTyping, wpm, maxParticles, autoText, getCurrentColor]);
+  }, [isAutoTyping, wpm, maxParticles, autoText, getCurrentColor, config.fontSize]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const target = e.target as HTMLElement;
@@ -312,6 +313,7 @@ function App() {
     
     const now = Date.now();
     const width = window.innerWidth;
+    const charSpacing = config.fontSize * 0.7; // Dynamic spacing based on font size
 
     if (e.key === 'Enter') {
         lastTypeTimeRef.current = 0; 
@@ -329,16 +331,16 @@ function App() {
     if (physicsRef.current) {
          if (e.key.length === 1) {
             if (e.key === ' ') {
-                 cursorXRef.current += CHAR_SPACING;
+                 cursorXRef.current += charSpacing;
             } else {
                  physicsRef.current.addText(e.key, cursorXRef.current, cursorYRef.current, getCurrentColor());
                  physicsRef.current.pruneBodies(maxParticles);
-                 cursorXRef.current += CHAR_SPACING;
+                 cursorXRef.current += charSpacing;
             }
             lastTypeTimeRef.current = now;
          }
     }
-  }, [maxParticles, getCurrentColor]); 
+  }, [maxParticles, getCurrentColor, config.fontSize]); 
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -351,6 +353,7 @@ function App() {
         const char = val.slice(-1);
         const now = Date.now();
         const width = window.innerWidth;
+        const charSpacing = config.fontSize * 0.7; // Dynamic spacing based on font size
         
         if (now - lastTypeTimeRef.current > WORD_PAUSE_MS) {
              resetCursorForNewWord();
@@ -359,11 +362,11 @@ function App() {
         if (cursorXRef.current > width * 0.9) resetCursorForNewWord();
 
         if (char === ' ') {
-            cursorXRef.current += CHAR_SPACING;
+            cursorXRef.current += charSpacing;
         } else {
             physicsRef.current?.addText(char, cursorXRef.current, cursorYRef.current, getCurrentColor());
             physicsRef.current?.pruneBodies(maxParticles);
-            cursorXRef.current += CHAR_SPACING;
+            cursorXRef.current += charSpacing;
         }
         lastTypeTimeRef.current = now;
         e.target.value = '';
