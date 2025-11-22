@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { PhysicsConfig, SchemeMode } from '../types';
-import { Settings2, Trash2, Play, Pause, Palette, RefreshCw, Maximize2, Minimize2, Eye, EyeOff, Type, MoveHorizontal } from 'lucide-react';
+import { Settings2, Trash2, Play, Pause, Palette, RefreshCw, Maximize2, Minimize2, Eye, EyeOff, Type, MoveHorizontal, Volume2, VolumeX } from 'lucide-react';
 
 interface FontOption {
     name: string;
@@ -38,6 +39,10 @@ interface ControlPanelProps {
   onToggleFullscreen: () => void;
   isZenMode: boolean;
   onToggleZenMode: () => void;
+
+  // Audio Props
+  isMuted: boolean;
+  onToggleMute: () => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({ 
@@ -63,7 +68,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     isFullscreen,
     onToggleFullscreen,
     isZenMode,
-    onToggleZenMode
+    onToggleZenMode,
+    isMuted,
+    onToggleMute
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -91,6 +98,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
         >
             {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+        </button>
+
+        <button 
+            onClick={onToggleMute}
+            className={`p-3 rounded-full shadow-lg transition-all border border-stone-200 ${
+                isMuted ? 'bg-stone-200 text-stone-500' : 'bg-white/80 backdrop-blur-sm text-stone-700 hover:bg-white'
+            }`}
+            title={isMuted ? "Unmute" : "Mute"}
+        >
+            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
         </button>
 
         <div className="w-px h-10 bg-stone-300 mx-1 opacity-50" />

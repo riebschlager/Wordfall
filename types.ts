@@ -1,3 +1,4 @@
+
 // Fix: Import Matter to resolve namespace error
 import Matter from 'matter-js';
 
@@ -19,6 +20,7 @@ export enum WallType {
 
 export interface LetterBody extends Matter.Body {
   char?: string;
+  hasCollided?: boolean;
 }
 
 export type SchemeMode = 'monochrome' | 'monochrome-dark' | 'monochrome-light' | 'analogic' | 'complement' | 'analogic-complement' | 'triad' | 'quad';

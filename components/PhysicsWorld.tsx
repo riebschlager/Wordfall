@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import Matter from 'matter-js';
 import { PhysicsConfig } from '../types';
@@ -8,6 +9,7 @@ interface PhysicsWorldProps {
   config: PhysicsConfig;
   fontFamily: string;
   onReady?: () => void;
+  onCollision?: () => void;
 }
 
 export interface PhysicsWorldHandle {
@@ -16,7 +18,7 @@ export interface PhysicsWorldHandle {
   pruneBodies: (maxCount: number) => void;
 }
 
-const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config, fontFamily, onReady }, ref) => {
+const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config, fontFamily, onReady, onCollision }, ref) => {
   const sceneRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
@@ -25,6 +27,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
   // Use refs so render loop and imperative handle can access latest props
   const fontRef = useRef(fontFamily);
   const configRef = useRef(config);
+  const onCollisionRef = useRef(onCollision);
   
   // Track previous effective size (fontSize * spacing) to handle scaling of existing bodies
   const prevEffectiveSizeRef = useRef(config.fontSize * config.spacing);
@@ -32,6 +35,10 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
   useEffect(() => {
     fontRef.current = fontFamily;
   }, [fontFamily]);
+  
+  useEffect(() => {
+    onCollisionRef.current = onCollision;
+  }, [onCollision]);
 
   useEffect(() => {
     configRef.current = config;
@@ -82,6 +89,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         (body as any).char = char;
         (body as any).color = color;
         (body as any).createdAt = Date.now();
+        (body as any).hasCollided = false; // Track collision for audio
         
         Matter.World.add(world, body);
         // Use Math.max(1, spacing) to ensure we always advance at least the visual width of the letter,
@@ -212,13 +220,40 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
     Matter.World.add(world, mouseConstraint);
     render.mouse = mouse;
 
-    // 5. Runner
+    // 5. Collision Events for Audio
+    Matter.Events.on(engine, 'collisionStart', (event) => {
+        const pairs = event.pairs;
+        let collisionOccurred = false;
+
+        for (let i = 0; i < pairs.length; i++) {
+            const bodyA = pairs[i].bodyA as any;
+            const bodyB = pairs[i].bodyB as any;
+
+            // Check if A is a letter and hasn't collided yet
+            if (bodyA.label === 'letter' && !bodyA.hasCollided) {
+                bodyA.hasCollided = true;
+                collisionOccurred = true;
+            }
+
+            // Check if B is a letter and hasn't collided yet
+            if (bodyB.label === 'letter' && !bodyB.hasCollided) {
+                bodyB.hasCollided = true;
+                collisionOccurred = true;
+            }
+        }
+
+        if (collisionOccurred && onCollisionRef.current) {
+            onCollisionRef.current();
+        }
+    });
+
+    // 6. Runner
     const runner = Matter.Runner.create();
     runnerRef.current = runner;
     Matter.Runner.run(runner, engine);
     Matter.Render.run(render);
 
-    // 6. Cleanup Logic (Run before physics update)
+    // 7. Cleanup Logic (Run before physics update)
     Matter.Events.on(engine, 'beforeUpdate', () => {
         const now = Date.now();
         const bodies = Matter.Composite.allBodies(engine.world);
@@ -238,7 +273,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         }
     });
 
-    // 7. Custom Rendering Hook for Text
+    // 8. Custom Rendering Hook for Text
     Matter.Events.on(render, 'afterRender', () => {
         const ctx = render.context;
         const bodies = Matter.Composite.allBodies(engine.world);
@@ -299,7 +334,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         });
     });
 
-    // 8. Resize Handler using ResizeObserver
+    // 9. Resize Handler using ResizeObserver
     // This ensures we capture the correct dimensions after layout changes (fullscreen, window resize)
     const resizeObserver = new ResizeObserver((entries) => {
         if (!entries.length || !renderRef.current || !engineRef.current) return;

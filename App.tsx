@@ -1,9 +1,11 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import PhysicsWorld, { PhysicsWorldHandle } from './components/PhysicsWorld';
 import ControlPanel from './components/ControlPanel';
 import { PhysicsConfig, SchemeMode } from './types';
 import { generateFallingPoem } from './services/geminiService';
 import { fetchColorScheme } from './services/colorService';
+import { AudioService } from './services/audioService';
 
 const INITIAL_CONFIG: PhysicsConfig = {
   gravity: 1,
@@ -70,6 +72,10 @@ function App() {
   const [isZenMode, setIsZenMode] = useState(false);
   const [isUiVisible, setIsUiVisible] = useState(true);
   const uiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Audio settings
+  const [isMuted, setIsMuted] = useState(false);
+  const audioServiceRef = useRef<AudioService>(new AudioService());
 
   const physicsRef = useRef<PhysicsWorldHandle>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -174,6 +180,7 @@ function App() {
     setIsAutoTyping(!isAutoTyping);
     if (!isAutoTyping) {
         inputRef.current?.focus();
+        audioServiceRef.current.init(); // Ensure audio context is ready
     }
   };
 
@@ -203,11 +210,19 @@ function App() {
         if (uiTimeoutRef.current) clearTimeout(uiTimeoutRef.current);
     }
   };
+
+  const toggleMute = () => {
+    const nextMuteState = !isMuted;
+    setIsMuted(nextMuteState);
+    audioServiceRef.current.setMuted(nextMuteState);
+  };
   
   const handleCanvasClick = (e: React.MouseEvent) => {
     // Ignore clicks on controls (buttons, inputs, or the settings panel)
     const target = e.target as HTMLElement;
     if (target.closest('button') || target.closest('input') || target.closest('.settings-panel')) return;
+
+    audioServiceRef.current.init(); // Initialize audio on first interaction
 
     const x = e.clientX;
     const y = e.clientY;
@@ -229,6 +244,9 @@ function App() {
   const resetCursorForNewWord = () => {
       // Cycle color for new word
       colorIndexRef.current += 1;
+      
+      // Change musical scale for new word
+      audioServiceRef.current.changeScale();
 
       if (cursorAnchorRef.current) {
           cursorXRef.current = cursorAnchorRef.current.x;
@@ -242,6 +260,10 @@ function App() {
           cursorYRef.current = DEFAULT_DROP_Y;
       }
   };
+
+  const handleCollision = useCallback(() => {
+    audioServiceRef.current.playCollisionSound();
+  }, []);
 
   // Auto-Type Effect Loop
   useEffect(() => {
@@ -282,6 +304,7 @@ function App() {
             if (char !== ' ' && char !== '\n' && char !== '\r') {
                 physicsRef.current.addText(char, cursorXRef.current, cursorYRef.current, getCurrentColor());
                 physicsRef.current.pruneBodies(maxParticles);
+                audioServiceRef.current.playTypingSound();
                 // Only advance cursor after placing a letter
                 cursorXRef.current += charSpacing;
             } else {
@@ -314,6 +337,9 @@ function App() {
     // let the onChange event handle single characters.
     if (target.id === 'hidden-type-input' && e.key.length === 1) return;
     
+    // Init audio on key press
+    audioServiceRef.current.init();
+
     const now = Date.now();
     const width = window.innerWidth;
     
@@ -340,6 +366,7 @@ function App() {
             } else {
                  physicsRef.current.addText(e.key, cursorXRef.current, cursorYRef.current, getCurrentColor());
                  physicsRef.current.pruneBodies(maxParticles);
+                 audioServiceRef.current.playTypingSound();
                  cursorXRef.current += charSpacing;
             }
             lastTypeTimeRef.current = now;
@@ -353,6 +380,7 @@ function App() {
   }, [handleKeyDown]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    audioServiceRef.current.init();
     const val = e.target.value;
     if (val.length > 0) {
         const char = val.slice(-1);
@@ -373,6 +401,7 @@ function App() {
         } else {
             physicsRef.current?.addText(char, cursorXRef.current, cursorYRef.current, getCurrentColor());
             physicsRef.current?.pruneBodies(maxParticles);
+            audioServiceRef.current.playTypingSound();
             cursorXRef.current += charSpacing;
         }
         lastTypeTimeRef.current = now;
@@ -390,7 +419,12 @@ function App() {
         onClick={handleCanvasClick}
         onMouseMove={handleMouseMove}
     >
-      <PhysicsWorld ref={physicsRef} config={config} fontFamily={currentFont} />
+      <PhysicsWorld 
+        ref={physicsRef} 
+        config={config} 
+        fontFamily={currentFont}
+        onCollision={handleCollision} 
+      />
 
       <div className={`absolute top-6 left-6 pointer-events-none select-none z-10 transition-opacity duration-500 ${uiOpacityClass}`}>
         <h1 className="font-['Courier_Prime'] text-4xl font-bold text-stone-800 tracking-tighter">
@@ -430,6 +464,9 @@ function App() {
             onToggleFullscreen={toggleFullscreen}
             isZenMode={isZenMode}
             onToggleZenMode={toggleZenMode}
+            // Audio Props
+            isMuted={isMuted}
+            onToggleMute={toggleMute}
           />
       </div>
 
