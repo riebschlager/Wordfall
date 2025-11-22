@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { PhysicsConfig, SchemeMode } from '../types';
-import { Settings2, Trash2, Keyboard, Play, Pause, Palette, RefreshCw, Maximize2, Minimize2, Eye, EyeOff } from 'lucide-react';
+import { Settings2, Trash2, Keyboard, Play, Pause, Palette, RefreshCw, Maximize2, Minimize2, Eye, EyeOff, Type } from 'lucide-react';
+
+interface FontOption {
+    name: string;
+    value: string;
+}
 
 interface ControlPanelProps {
   config: PhysicsConfig;
@@ -22,6 +27,11 @@ interface ControlPanelProps {
   onSchemeModeChange: (mode: SchemeMode) => void;
   currentPalette: string[];
   
+  // Font Props
+  fonts: FontOption[];
+  currentFont: string;
+  onFontChange: (font: string) => void;
+
   onRegeneratePoem: () => void;
 
   // View Props
@@ -48,6 +58,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     schemeMode,
     onSchemeModeChange,
     currentPalette,
+    fonts,
+    currentFont,
+    onFontChange,
     onRegeneratePoem,
     isFullscreen,
     onToggleFullscreen,
@@ -125,6 +138,27 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       {isOpen && (
         <div className="settings-panel mt-2 p-6 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-stone-200 w-80 pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-200 max-h-[80vh] overflow-y-auto">
             
+            <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <Type size={16} /> Typography
+            </h3>
+            
+            <div className="mb-6">
+                 <select 
+                    value={currentFont}
+                    onChange={(e) => onFontChange(e.target.value)}
+                    className="w-full h-10 rounded-lg border border-stone-200 bg-white text-stone-800 text-sm px-3 focus:outline-none focus:ring-2 focus:ring-stone-800 cursor-pointer appearance-auto"
+                >
+                    {fonts.map((font) => (
+                        <option key={font.name} value={font.value}>{font.name}</option>
+                    ))}
+                </select>
+                <p className="text-[10px] text-stone-400 mt-2 text-center" style={{ fontFamily: currentFont.split(',')[0] }}>
+                    The quick brown fox jumps over the lazy dog.
+                </p>
+            </div>
+
+            <hr className="border-stone-200 my-4" />
+
             <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                 <Palette size={16} /> Color Scheme
             </h3>

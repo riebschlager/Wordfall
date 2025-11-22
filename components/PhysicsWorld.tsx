@@ -3,12 +3,12 @@ import Matter from 'matter-js';
 import { PhysicsConfig } from '../types';
 
 // Font configuration
-const FONT_FAMILY = '"Courier Prime", monospace';
 const BASE_FONT_SIZE = 48;
 const FADE_DURATION = 600; // ms for the fade-out animation
 
 interface PhysicsWorldProps {
   config: PhysicsConfig;
+  fontFamily: string;
   onReady?: () => void;
 }
 
@@ -18,11 +18,19 @@ export interface PhysicsWorldHandle {
   pruneBodies: (maxCount: number) => void;
 }
 
-const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config, onReady }, ref) => {
+const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config, fontFamily, onReady }, ref) => {
   const sceneRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
   const runnerRef = useRef<Matter.Runner | null>(null);
+  
+  // Use a ref for font family so the render loop can access the latest value
+  // without needing to recreate the engine/render loop
+  const fontRef = useRef(fontFamily);
+
+  useEffect(() => {
+    fontRef.current = fontFamily;
+  }, [fontFamily]);
   
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
@@ -209,7 +217,8 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         const bodies = Matter.Composite.allBodies(engine.world);
         const now = Date.now();
 
-        ctx.font = `bold ${BASE_FONT_SIZE}px ${FONT_FAMILY}`;
+        // Use the ref to get the current font family
+        ctx.font = `bold ${BASE_FONT_SIZE}px ${fontRef.current}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 

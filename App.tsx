@@ -12,6 +12,19 @@ const INITIAL_CONFIG: PhysicsConfig = {
   scale: 1,
 };
 
+const FONTS = [
+  { name: 'Courier Prime', value: '"Courier Prime", monospace' },
+  { name: 'Space Mono', value: '"Space Mono", monospace' },
+  { name: 'VT323', value: '"VT323", monospace' },
+  { name: 'Fira Code', value: '"Fira Code", monospace' },
+  { name: 'Special Elite', value: '"Special Elite", cursive' },
+  { name: 'Fredoka', value: '"Fredoka", sans-serif' },
+  { name: 'Righteous', value: '"Righteous", cursive' },
+  { name: 'Bangers', value: '"Bangers", system-ui' },
+  { name: 'Creepster', value: '"Creepster", system-ui' },
+  { name: 'Amatic SC', value: '"Amatic SC", cursive' },
+];
+
 const WORD_PAUSE_MS = 600; // Time to wait before starting a new word position
 const CHAR_SPACING = 35;   // Horizontal space between falling letters
 const DEFAULT_DROP_Y = 100; // Default Vertical start position
@@ -39,6 +52,9 @@ function App() {
   const [schemeMode, setSchemeMode] = useState<SchemeMode>('analogic-complement');
   const [paletteColors, setPaletteColors] = useState<string[]>(['#ef4444']);
   
+  // Font State
+  const [currentFont, setCurrentFont] = useState<string>(FONTS[0].value);
+
   const colorIndexRef = useRef<number>(0);
   
   // Auto-type settings
@@ -368,7 +384,7 @@ function App() {
         onClick={handleCanvasClick}
         onMouseMove={handleMouseMove}
     >
-      <PhysicsWorld ref={physicsRef} config={config} />
+      <PhysicsWorld ref={physicsRef} config={config} fontFamily={currentFont} />
 
       <div className={`absolute top-6 left-6 pointer-events-none select-none z-10 transition-opacity duration-500 ${uiOpacityClass}`}>
         <h1 className="font-['Courier_Prime'] text-4xl font-bold text-stone-800 tracking-tighter">
@@ -398,6 +414,11 @@ function App() {
             schemeMode={schemeMode}
             onSchemeModeChange={setSchemeMode}
             currentPalette={paletteColors}
+            // Font Props
+            fonts={FONTS}
+            currentFont={currentFont}
+            onFontChange={setCurrentFont}
+            
             onRegeneratePoem={handleRegeneratePoem}
             // View Props
             isFullscreen={isFullscreen}
