@@ -38,7 +38,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
       if (!engineRef.current) return;
       
       const world = engineRef.current.world;
-      const width = window.innerWidth;
+      const width = sceneRef.current ? sceneRef.current.clientWidth : window.innerWidth;
       
       // Calculate spawn position
       // If no X provided, randomize it
@@ -129,13 +129,16 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
     const world = engine.world;
     engineRef.current = engine;
 
+    const initialWidth = sceneRef.current.clientWidth;
+    const initialHeight = sceneRef.current.clientHeight;
+
     // 2. Setup Render
     const render = Matter.Render.create({
       element: sceneRef.current,
       engine: engine,
       options: {
-        width: window.innerWidth,
-        height: window.innerHeight,
+        width: initialWidth,
+        height: initialHeight,
         wireframes: false,
         background: 'transparent',
         pixelRatio: window.devicePixelRatio
@@ -144,22 +147,20 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
     renderRef.current = render;
 
     // 3. Create Walls Helper
-    const createWalls = () => {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+    const createWalls = (w: number, h: number) => {
         const wallThickness = 60;
         
-        const ground = Matter.Bodies.rectangle(width / 2, height + wallThickness / 2 - 10, width, wallThickness, { 
+        const ground = Matter.Bodies.rectangle(w / 2, h + wallThickness / 2 - 10, w, wallThickness, { 
             isStatic: true, 
             render: { fillStyle: 'transparent' },
             label: 'wall'
         });
-        const leftWall = Matter.Bodies.rectangle(0 - wallThickness / 2, height / 2, wallThickness, height * 2, { 
+        const leftWall = Matter.Bodies.rectangle(0 - wallThickness / 2, h / 2, wallThickness, h * 2, { 
             isStatic: true,
             render: { fillStyle: 'transparent' },
             label: 'wall'
         });
-        const rightWall = Matter.Bodies.rectangle(width + wallThickness / 2, height / 2, wallThickness, height * 2, { 
+        const rightWall = Matter.Bodies.rectangle(w + wallThickness / 2, h / 2, wallThickness, h * 2, { 
             isStatic: true,
             render: { fillStyle: 'transparent' },
             label: 'wall'
@@ -169,7 +170,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
     };
     
     // Initial create
-    createWalls();
+    createWalls(initialWidth, initialHeight);
 
     // 4. Mouse Control
     const mouse = Matter.Mouse.create(render.canvas);
@@ -262,13 +263,26 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         });
     });
 
-    // 8. Resize Handler
-    const handleResize = () => {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+    // 8. Resize Handler using ResizeObserver
+    // This ensures we capture the correct dimensions after layout changes (fullscreen, window resize)
+    const resizeObserver = new ResizeObserver((entries) => {
+        if (!entries.length || !renderRef.current || !engineRef.current) return;
+
+        const entry = entries[0];
+        const width = entry.contentRect.width;
+        const height = entry.contentRect.height;
         const pixelRatio = window.devicePixelRatio || 1;
+        
+        const render = renderRef.current;
+        
+        // Optimization: Only resize if dimensions significantly changed or pixelRatio changed
+        const isSizeDifferent = Math.abs((render.options.width || 0) - width) > 1 || Math.abs((render.options.height || 0) - height) > 1;
+        const isDprDifferent = render.options.pixelRatio !== pixelRatio;
+
+        if (!isSizeDifferent && !isDprDifferent) return;
 
         // Update Canvas and Render sizing correctly for High DPI
+        // We must set internal pixel dimensions (width * ratio) vs display dimensions (style.width)
         render.canvas.width = width * pixelRatio;
         render.canvas.height = height * pixelRatio;
         render.canvas.style.width = `${width}px`;
@@ -291,7 +305,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         Matter.World.clear(world, false);
 
         // Rebuild walls with new dimensions
-        createWalls();
+        createWalls(width, height);
 
         // Add back the letters and mouse constraint
         Matter.World.add(world, [...bodies, mouseConstraint]);
@@ -313,17 +327,21 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
                 Matter.Body.setVelocity(b, { x: 0, y: 0 }); // Reset velocity to prevent glitching through walls
             }
         });
-    };
+    });
 
-    window.addEventListener('resize', handleResize);
+    resizeObserver.observe(sceneRef.current);
 
     if (onReady) onReady();
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       Matter.Render.stop(render);
       Matter.Runner.stop(runner);
       if (render.canvas) render.canvas.remove();
+      if (engineRef.current) {
+          Matter.World.clear(engineRef.current.world, false);
+          Matter.Engine.clear(engineRef.current);
+      }
     };
   }, []);
 
