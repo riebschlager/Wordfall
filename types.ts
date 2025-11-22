@@ -17,7 +17,6 @@ export enum WallType {
 
 export interface LetterBody extends Matter.Body {
   char?: string;
-  isStatic?: boolean;
 }
 
 export interface ColorPalette {

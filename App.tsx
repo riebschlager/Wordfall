@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import PhysicsWorld, { PhysicsWorldHandle } from './components/PhysicsWorld';
 import ControlPanel from './components/ControlPanel';
 import { PhysicsConfig, ColorPalette } from './types';
-import { generateCreativeText, generateFallingPoem } from './services/geminiService';
+import { generateFallingPoem } from './services/geminiService';
 
 const INITIAL_CONFIG: PhysicsConfig = {
   gravity: 1,
@@ -99,20 +99,6 @@ function App() {
     
     // Refocus input
     inputRef.current?.focus();
-  };
-
-  const handleAIRequest = async (topic: string) => {
-    setIsGenerating(true);
-    // Stop auto-typing if user requests manual AI gen
-    setIsAutoTyping(false);
-    try {
-      const text = await generateCreativeText(topic);
-      streamTextDrop(text);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsGenerating(false);
-    }
   };
 
   const handleRegeneratePoem = async () => {
@@ -236,41 +222,6 @@ function App() {
     };
   }, [isAutoTyping, wpm, maxParticles, autoText, getCurrentColor]);
 
-
-  // One-off AI streaming
-  const streamTextDrop = async (text: string) => {
-    const width = window.innerWidth;
-    
-    resetCursorForNewWord();
-    lastTypeTimeRef.current = Date.now();
-
-    const chars = text.split('');
-
-    for (const char of chars) {
-      if (!physicsRef.current) break;
-
-      if (cursorXRef.current > width * 0.85) {
-        resetCursorForNewWord();
-        await new Promise(r => setTimeout(r, 400));
-      }
-
-      if (char === ' ') {
-        cursorXRef.current += CHAR_SPACING * 0.8;
-        await new Promise(r => setTimeout(r, 100));
-        continue;
-      }
-
-      await new Promise(r => setTimeout(r, 40 + Math.random() * 40));
-      
-      if (physicsRef.current) {
-        physicsRef.current.addText(char, cursorXRef.current, cursorYRef.current, getCurrentColor());
-        physicsRef.current.pruneBodies(maxParticles);
-        cursorXRef.current += CHAR_SPACING;
-        lastTypeTimeRef.current = Date.now();
-      }
-    }
-  };
-
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const target = e.target as HTMLElement;
     if (target.tagName === 'INPUT' && target.id !== 'hidden-type-input') return;
@@ -363,7 +314,6 @@ function App() {
         config={config}
         onConfigChange={setConfig}
         onClear={handleClear}
-        onGenerate={handleAIRequest}
         isGenerating={isGenerating}
         onToggleKeyboard={toggleKeyboard}
         isAutoTyping={isAutoTyping}

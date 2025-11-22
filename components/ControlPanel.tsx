@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { PhysicsConfig, ColorPalette } from '../types';
-import { Settings2, Trash2, Sparkles, Keyboard, Play, Pause, Palette, RefreshCw } from 'lucide-react';
+import { Settings2, Trash2, Keyboard, Play, Pause, Palette, RefreshCw } from 'lucide-react';
 
 interface ControlPanelProps {
   config: PhysicsConfig;
   onConfigChange: (newConfig: PhysicsConfig) => void;
   onClear: () => void;
-  onGenerate: (prompt: string) => void;
   isGenerating: boolean;
   onToggleKeyboard: () => void;
   isAutoTyping: boolean;
@@ -25,7 +24,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     config, 
     onConfigChange, 
     onClear, 
-    onGenerate, 
     isGenerating,
     onToggleKeyboard,
     isAutoTyping,
@@ -40,19 +38,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onRegeneratePoem
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [prompt, setPrompt] = useState("");
 
   const handleRangeChange = (key: keyof PhysicsConfig, value: number) => {
     onConfigChange({ ...config, [key]: value });
-  };
-
-  const handleGenerateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (prompt.trim()) {
-        onGenerate(prompt);
-        setPrompt("");
-        setIsOpen(false); // Close panel on mobile/cleaner UI
-    }
   };
 
   return (
@@ -191,34 +179,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         className="w-full accent-stone-800 h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer"
                     />
                 </div>
-
-                <hr className="border-stone-200 my-4" />
-
-                <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">AI Inspiration</h3>
-                
-                <form onSubmit={handleGenerateSubmit} className="space-y-2">
-                    <input 
-                        type="text"
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        placeholder="e.g. A rainy day in Paris..."
-                        className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 transition-all"
-                    />
-                    <button 
-                        type="submit" 
-                        disabled={isGenerating || !prompt.trim()}
-                        className="w-full py-2 px-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all transform active:scale-95"
-                    >
-                        {isGenerating ? (
-                            <span className="animate-pulse">Dreaming...</span>
-                        ) : (
-                            <>
-                                <Sparkles size={16} />
-                                <span>Generate</span>
-                            </>
-                        )}
-                    </button>
-                </form>
             </div>
         </div>
       )}
