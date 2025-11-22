@@ -1,30 +1,19 @@
 
-// Musical scales defined by semitone offsets
-const SCALES = {
-  major: [0, 2, 4, 5, 7, 9, 11, 12],
-  minor: [0, 2, 3, 5, 7, 8, 10, 12],
-  pentatonicMajor: [0, 2, 4, 7, 9, 12],
-  pentatonicMinor: [0, 3, 5, 7, 10, 12],
-  dorian: [0, 2, 3, 5, 7, 9, 10, 12],
-  mixolydian: [0, 2, 4, 5, 7, 9, 10, 12],
-  lydian: [0, 2, 4, 6, 7, 9, 11, 12],
-};
-
-const ROOT_FREQUENCIES = [
-  196.00, // G3
-  220.00, // A3
-  246.94, // B3
-  261.63, // C4
-  293.66, // D4
-  329.63, // E4
-  349.23, // F4
+// Define a standard I-V-vi-IV progression in C Major
+// Values are semitone offsets from Middle C (C4)
+const CHORD_PROGRESSION = [
+  [0, 4, 7, 12],     // I:  C Major (C, E, G, C)
+  [7, 11, 14, 19],   // V:  G Major (G, B, D, G)
+  [9, 12, 16, 21],   // vi: A Minor (A, C, E, A)
+  [5, 9, 12, 17],    // IV: F Major (F, A, C, F)
 ];
+
+const BASE_FREQUENCY = 261.63; // C4
 
 export class AudioService {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
-  private currentScale: number[] = SCALES.pentatonicMajor;
-  private currentRoot: number = 261.63; // C4
+  private currentChordIndex: number = 0;
 
   constructor() {
     // AudioContext is initialized on first user interaction to comply with browser policies
@@ -46,21 +35,20 @@ export class AudioService {
     }
   }
 
+  // Advances to the next chord in the progression
   public changeScale() {
-    // Pick a random root note
-    this.currentRoot = ROOT_FREQUENCIES[Math.floor(Math.random() * ROOT_FREQUENCIES.length)];
-    
-    // Pick a random scale type
-    const scaleKeys = Object.keys(SCALES) as Array<keyof typeof SCALES>;
-    const randomKey = scaleKeys[Math.floor(Math.random() * scaleKeys.length)];
-    this.currentScale = SCALES[randomKey];
+    this.currentChordIndex = (this.currentChordIndex + 1) % CHORD_PROGRESSION.length;
   }
 
-  private getScaleFrequency(octaveOffset: number = 0): number {
-    // Pick a random note from the current scale
-    const semitone = this.currentScale[Math.floor(Math.random() * this.currentScale.length)];
-    // Calculate frequency: f = root * 2^(n/12)
-    return this.currentRoot * Math.pow(2, (semitone + (octaveOffset * 12)) / 12);
+  private getNoteFrequency(octaveShift: number = 0): number {
+    const currentChord = CHORD_PROGRESSION[this.currentChordIndex];
+    // Pick a random note from the chord tones
+    const semitone = currentChord[Math.floor(Math.random() * currentChord.length)];
+    
+    // f = C4 * 2^(n/12)
+    // Add octave shift (12 semitones per octave)
+    const totalSemitones = semitone + (octaveShift * 12);
+    return BASE_FREQUENCY * Math.pow(2, totalSemitones / 12);
   }
 
   public playTypingSound() {
@@ -72,19 +60,21 @@ export class AudioService {
     osc.connect(gainNode);
     gainNode.connect(this.ctx.destination);
 
-    // Typing sound: Soft, slightly bell-like but short
+    // Typing: Triangle wave for clarity, slightly lower/warm register
     osc.type = 'triangle';
-    const freq = this.getScaleFrequency(0); // Base octave
+    // Randomly choose between base octave or one below for variety/depth
+    const octave = Math.random() > 0.6 ? 0 : -1;
+    const freq = this.getNoteFrequency(octave); 
     osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
 
     // Envelope
     const now = this.ctx.currentTime;
     gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.15, now + 0.01); // Attack
-    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.3); // Decay
+    gainNode.gain.linearRampToValueAtTime(0.15, now + 0.01); // Quick attack
+    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.4); // Medium decay
 
     osc.start(now);
-    osc.stop(now + 0.4);
+    osc.stop(now + 0.5);
   }
 
   public playCollisionSound() {
@@ -96,18 +86,19 @@ export class AudioService {
     osc.connect(gainNode);
     gainNode.connect(this.ctx.destination);
 
-    // Collision sound: Softer, higher pitched "chime" or "glassy"
+    // Collision: Sine wave for "glassy" sound, higher register
     osc.type = 'sine';
-    const freq = this.getScaleFrequency(1); // One octave up
+    // Shift up 1 octave for the chime effect
+    const freq = this.getNoteFrequency(1); 
     osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
 
-    // Envelope - very short
+    // Envelope - very short and delicate
     const now = this.ctx.currentTime;
     gainNode.gain.setValueAtTime(0, now);
     gainNode.gain.linearRampToValueAtTime(0.05, now + 0.005); // Very fast attack
-    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.15); // Fast decay
+    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.2); // Fast decay
 
     osc.start(now);
-    osc.stop(now + 0.2);
+    osc.stop(now + 0.3);
   }
 }
