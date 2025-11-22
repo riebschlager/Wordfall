@@ -13,7 +13,12 @@ const BASE_FREQUENCY = 261.63; // C4
 export class AudioService {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
+  
   private currentChordIndex: number = 0;
+  
+  // Arpeggio State
+  private arpeggioIndex: number = 0;
+  private isArpeggioAscending: boolean = true;
   
   // Reverb Nodes
   private dryNode: GainNode | null = null;
@@ -38,7 +43,7 @@ export class AudioService {
       
       // Mix Levels
       this.dryNode.gain.value = 0.7; // Direct sound
-      this.wetNode.gain.value = 0.6; // High reverb level for atmosphere
+      this.wetNode.gain.value = 0.9; // High reverb level for atmosphere
       
       // Connections:
       // Source -> [Gain] -> dryNode -> Destination
@@ -83,13 +88,13 @@ export class AudioService {
   // Advances to the next chord in the progression
   public changeScale() {
     this.currentChordIndex = (this.currentChordIndex + 1) % CHORD_PROGRESSION.length;
+    // Reset arpeggio logic slightly or keep it flowing? 
+    // Let's keep the flow but ensure index is valid for new array just in case
+    this.arpeggioIndex = 0;
+    this.isArpeggioAscending = true;
   }
 
-  private getNoteFrequency(octaveShift: number = 0): number {
-    const currentChord = CHORD_PROGRESSION[this.currentChordIndex];
-    // Pick a random note from the chord tones
-    const semitone = currentChord[Math.floor(Math.random() * currentChord.length)];
-    
+  private getNoteFrequency(semitone: number, octaveShift: number = 0): number {
     // f = C4 * 2^(n/12)
     // Add octave shift (12 semitones per octave)
     const totalSemitones = semitone + (octaveShift * 12);
@@ -105,6 +110,30 @@ export class AudioService {
         if (!this.dryNode) return;
     }
 
+    const currentChord = CHORD_PROGRESSION[this.currentChordIndex];
+
+    // --- Arpeggio Logic ---
+    // 1. Get the current note
+    const semitone = currentChord[this.arpeggioIndex];
+
+    // 2. Advance the index for next time
+    if (this.isArpeggioAscending) {
+        this.arpeggioIndex++;
+        if (this.arpeggioIndex >= currentChord.length) {
+            // Reached top, go back to second to last
+            this.arpeggioIndex = currentChord.length - 2;
+            this.isArpeggioAscending = false;
+        }
+    } else {
+        this.arpeggioIndex--;
+        if (this.arpeggioIndex < 0) {
+            // Reached bottom, go back to second note
+            this.arpeggioIndex = 1;
+            this.isArpeggioAscending = true;
+        }
+    }
+    // ----------------------
+
     const osc = this.ctx.createOscillator();
     const gainNode = this.ctx.createGain();
 
@@ -116,9 +145,12 @@ export class AudioService {
 
     // Typing: Triangle wave for clarity
     osc.type = 'triangle';
-    // Randomly choose between base octave or one below for variety/depth
-    const octave = Math.random() > 0.6 ? 0 : -1;
-    const freq = this.getNoteFrequency(octave); 
+    
+    // Use the determined semitone. 
+    // Randomly shift down an octave occasionally for depth, but keep melody clear
+    const octave = Math.random() > 0.8 ? -1 : 0;
+    const freq = this.getNoteFrequency(semitone, octave); 
+    
     osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
 
     // Envelope
@@ -135,6 +167,10 @@ export class AudioService {
     if (this.isMuted || !this.ctx) return;
     if (!this.dryNode || !this.convolver) return;
 
+    const currentChord = CHORD_PROGRESSION[this.currentChordIndex];
+    // For collision, pick a random note from the chord to avoid locking to the typing arpeggio
+    const semitone = currentChord[Math.floor(Math.random() * currentChord.length)];
+
     const osc = this.ctx.createOscillator();
     const gainNode = this.ctx.createGain();
 
@@ -143,16 +179,17 @@ export class AudioService {
     gainNode.connect(this.dryNode!);
     gainNode.connect(this.convolver!);
 
-    // Collision: Sine wave for "glassy" sound, higher register
+    // Collision: Sine wave for "glassy" sound
     osc.type = 'sine';
     // Shift up 1 octave for the chime effect
-    const freq = this.getNoteFrequency(1); 
+    const freq = this.getNoteFrequency(semitone, 1); 
     osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
 
     // Envelope - very short and delicate
     const now = this.ctx.currentTime;
     gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.05, now + 0.005); // Very fast attack
+    // Reduced volume by 50% (0.05 -> 0.01)
+    gainNode.gain.linearRampToValueAtTime(0.01, now + 0.005); // Very fast attack
     gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.2); // Fast decay
 
     osc.start(now);
