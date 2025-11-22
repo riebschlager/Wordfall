@@ -93,8 +93,6 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         bodiesToMark.forEach(body => {
           (body as any).isDying = true;
           (body as any).dyingSince = Date.now();
-          // Optional: Remove collision immediately so new letters don't pile on invisible ones?
-          // Currently keeping collision so the stack doesn't collapse weirdly while fading.
         });
       }
     }
@@ -137,7 +135,7 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
     });
     renderRef.current = render;
 
-    // 3. Create Walls
+    // 3. Create Walls Helper
     const createWalls = () => {
         const width = window.innerWidth;
         const height = window.innerHeight;
@@ -161,6 +159,8 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
 
         Matter.World.add(world, [ground, leftWall, rightWall]);
     };
+    
+    // Initial create
     createWalls();
 
     // 4. Mouse Control
@@ -255,14 +255,43 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
 
     // 8. Resize Handler
     const handleResize = () => {
-        render.canvas.width = window.innerWidth;
-        render.canvas.height = window.innerHeight;
-        Matter.World.clear(world, false);
-        // Re-create walls and re-add bodies
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        // Update Canvas and Render sizing
+        render.canvas.width = width;
+        render.canvas.height = height;
+        render.options.width = width;
+        render.options.height = height;
+        render.options.pixelRatio = window.devicePixelRatio;
+
+        // Update bounds to match new viewport
+        render.bounds.min.x = 0;
+        render.bounds.min.y = 0;
+        render.bounds.max.x = width;
+        render.bounds.max.y = height;
+
+        // Preserve letters
         const bodies = Matter.Composite.allBodies(world).filter(b => b.label === 'letter');
+        
+        // Clear world to remove old walls and messy state
         Matter.World.clear(world, false);
+
+        // Rebuild walls with new dimensions
         createWalls();
+
+        // Add back the letters and mouse constraint
         Matter.World.add(world, [...bodies, mouseConstraint]);
+        
+        // Push back any letters that might be out of bounds
+        bodies.forEach(b => {
+            if (b.position.x > width - 20) {
+                Matter.Body.setPosition(b, { x: width - 50, y: b.position.y });
+            }
+            if (b.position.y > height - 20) {
+                Matter.Body.setPosition(b, { x: b.position.x, y: height - 100 });
+            }
+        });
     };
 
     window.addEventListener('resize', handleResize);
