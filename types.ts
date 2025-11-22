@@ -19,8 +19,4 @@ export interface LetterBody extends Matter.Body {
   char?: string;
 }
 
-export interface ColorPalette {
-  id: string;
-  name: string;
-  colors: string[];
-}
+export type SchemeMode = 'monochrome' | 'monochrome-dark' | 'monochrome-light' | 'analogic' | 'complement' | 'analogic-complement' | 'triad' | 'quad';

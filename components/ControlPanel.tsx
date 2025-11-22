@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PhysicsConfig, ColorPalette } from '../types';
+import { PhysicsConfig, SchemeMode } from '../types';
 import { Settings2, Trash2, Keyboard, Play, Pause, Palette, RefreshCw } from 'lucide-react';
 
 interface ControlPanelProps {
@@ -14,9 +14,14 @@ interface ControlPanelProps {
   onWpmChange: (val: number) => void;
   maxParticles: number;
   onMaxParticlesChange: (val: number) => void;
-  palettes: ColorPalette[];
-  activePaletteId: string;
-  onPaletteChange: (id: string) => void;
+  
+  // Color Scheme Props
+  seedColor: string;
+  onSeedColorChange: (color: string) => void;
+  schemeMode: SchemeMode;
+  onSchemeModeChange: (mode: SchemeMode) => void;
+  currentPalette: string[];
+  
   onRegeneratePoem: () => void;
 }
 
@@ -32,9 +37,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onWpmChange,
     maxParticles,
     onMaxParticlesChange,
-    palettes,
-    activePaletteId,
-    onPaletteChange,
+    seedColor,
+    onSeedColorChange,
+    schemeMode,
+    onSchemeModeChange,
+    currentPalette,
     onRegeneratePoem
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -88,33 +95,54 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <div className="settings-panel mt-2 p-6 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-stone-200 w-80 pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-200 max-h-[80vh] overflow-y-auto">
             
             <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Palette size={16} /> Color Palette
+                <Palette size={16} /> Color Scheme
             </h3>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-                {palettes.map((palette) => (
-                    <div key={palette.id} className="group">
-                        <button
-                            onClick={() => onPaletteChange(palette.id)}
-                            className={`w-full h-8 rounded-lg flex overflow-hidden border-2 transition-all hover:scale-[1.02] active:scale-95 ${
-                                activePaletteId === palette.id 
-                                    ? 'border-stone-800 shadow-md scale-[1.02]' 
-                                    : 'border-stone-200 opacity-80 hover:opacity-100 hover:border-stone-300'
-                            }`}
-                            title={palette.name}
-                        >
-                            {palette.colors.map((color, idx) => (
-                                <div 
-                                    key={idx} 
-                                    className="flex-1 h-full" 
-                                    style={{ backgroundColor: color }} 
-                                />
-                            ))}
-                        </button>
-                        <div className={`text-[10px] font-medium text-stone-500 mt-1 ml-1 uppercase tracking-wider transition-opacity ${activePaletteId === palette.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'}`}>
-                            {palette.name}
-                        </div>
+            
+            <div className="flex flex-col gap-3 mb-6">
+                <div className="flex gap-2 items-center">
+                    <div className="relative overflow-hidden rounded-lg shadow-sm border border-stone-200 w-12 h-10 shrink-0">
+                         <input 
+                            type="color" 
+                            value={seedColor}
+                            onChange={(e) => onSeedColorChange(e.target.value)}
+                            className="absolute -top-2 -left-2 w-16 h-16 p-0 border-0 cursor-pointer"
+                        />
                     </div>
-                ))}
+                    
+                    <select 
+                        value={schemeMode}
+                        onChange={(e) => onSchemeModeChange(e.target.value as SchemeMode)}
+                        className="flex-1 h-10 rounded-lg border border-stone-200 bg-stone-50 text-xs px-2 focus:outline-none focus:ring-2 focus:ring-stone-800 cursor-pointer"
+                    >
+                         <option value="monochrome">Monochrome</option>
+                         <option value="monochrome-dark">Mono Dark</option>
+                         <option value="monochrome-light">Mono Light</option>
+                         <option value="analogic">Analogic</option>
+                         <option value="complement">Complement</option>
+                         <option value="analogic-complement">Analogic-Comp</option>
+                         <option value="triad">Triad</option>
+                         <option value="quad">Quad</option>
+                    </select>
+                </div>
+
+                {/* Current Palette Preview */}
+                <div className="w-full h-8 rounded-lg flex overflow-hidden border border-stone-200 shadow-inner">
+                    {currentPalette.length > 0 ? (
+                         currentPalette.map((color, idx) => (
+                            <div 
+                                key={idx} 
+                                className="flex-1 h-full transition-colors duration-500" 
+                                style={{ backgroundColor: color }} 
+                                title={color}
+                            />
+                        ))
+                    ) : (
+                        <div className="w-full h-full bg-stone-200 animate-pulse" />
+                    )}
+                </div>
+                <p className="text-[10px] text-stone-400 text-center">
+                    powered by thecolorapi.com
+                </p>
             </div>
             
             <hr className="border-stone-200 my-4" />

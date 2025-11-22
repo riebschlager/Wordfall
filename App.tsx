@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import PhysicsWorld, { PhysicsWorldHandle } from './components/PhysicsWorld';
 import ControlPanel from './components/ControlPanel';
-import { PhysicsConfig, ColorPalette } from './types';
+import { PhysicsConfig, SchemeMode } from './types';
 import { generateFallingPoem } from './services/geminiService';
+import { fetchColorScheme } from './services/colorService';
 
 const INITIAL_CONFIG: PhysicsConfig = {
   gravity: 1,
@@ -14,45 +15,6 @@ const INITIAL_CONFIG: PhysicsConfig = {
 const WORD_PAUSE_MS = 600; // Time to wait before starting a new word position
 const CHAR_SPACING = 35;   // Horizontal space between falling letters
 const DEFAULT_DROP_Y = 100; // Default Vertical start position
-
-// ROY-G-BIV Palettes with Complementary Accents
-const PALETTES: ColorPalette[] = [
-  { 
-    id: 'red', 
-    name: 'Ruby', 
-    colors: ['#ef4444', '#991b1b', '#fecaca', '#0f766e'] // Red + Dark Red + Light Red + Teal
-  },
-  { 
-    id: 'orange', 
-    name: 'Amber', 
-    colors: ['#f97316', '#c2410c', '#fdba74', '#1e40af'] // Orange + Dark Orange + Light Orange + Deep Blue
-  },
-  { 
-    id: 'yellow', 
-    name: 'Gold', 
-    colors: ['#eab308', '#854d0e', '#fef08a', '#581c87'] // Yellow + Dark Gold + Light Yellow + Deep Purple
-  },
-  { 
-    id: 'green', 
-    name: 'Emerald', 
-    colors: ['#22c55e', '#14532d', '#86efac', '#be123c'] // Green + Dark Green + Light Green + Rose
-  },
-  { 
-    id: 'blue', 
-    name: 'Sapphire', 
-    colors: ['#3b82f6', '#1e3a8a', '#93c5fd', '#d97706'] // Blue + Navy + Light Blue + Amber
-  },
-  { 
-    id: 'indigo', 
-    name: 'Indigo', 
-    colors: ['#6366f1', '#312e81', '#c7d2fe', '#a3e635'] // Indigo + Deep Indigo + Light Indigo + Lime
-  },
-  { 
-    id: 'violet', 
-    name: 'Amethyst', 
-    colors: ['#a855f7', '#581c87', '#d8b4fe', '#facc15'] // Purple + Deep Purple + Light Purple + Yellow
-  }
-];
 
 const FALLING_POEM = `To fall is not to fail, but to yield. 
 We start as rigid things, holding our breath, gripping the ledge of certainty. 
@@ -72,8 +34,11 @@ function App() {
   const [config, setConfig] = useState<PhysicsConfig>(INITIAL_CONFIG);
   const [isGenerating, setIsGenerating] = useState(false);
   
-  // Palette state
-  const [activePaletteId, setActivePaletteId] = useState<string>('red');
+  // Dynamic Color State
+  const [seedColor, setSeedColor] = useState<string>('#ef4444'); // Default Ruby Red
+  const [schemeMode, setSchemeMode] = useState<SchemeMode>('analogic-complement');
+  const [paletteColors, setPaletteColors] = useState<string[]>(['#ef4444']);
+  
   const colorIndexRef = useRef<number>(0);
   
   // Auto-type settings
@@ -101,6 +66,16 @@ function App() {
     inputRef.current?.focus();
   }, []);
 
+  // Fetch Color Scheme when Seed or Mode changes
+  useEffect(() => {
+    // Debounce API calls to avoid rate limits
+    const timer = setTimeout(async () => {
+        const colors = await fetchColorScheme(seedColor, schemeMode);
+        setPaletteColors(colors);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [seedColor, schemeMode]);
+
   // Remove click indicator after animation
   useEffect(() => {
     if (clickIndicator) {
@@ -113,9 +88,9 @@ function App() {
 
   // Get current color based on palette and index
   const getCurrentColor = useCallback(() => {
-    const palette = PALETTES.find(p => p.id === activePaletteId) || PALETTES[0];
-    return palette.colors[colorIndexRef.current % palette.colors.length];
-  }, [activePaletteId]);
+    if (paletteColors.length === 0) return seedColor;
+    return paletteColors[colorIndexRef.current % paletteColors.length];
+  }, [paletteColors, seedColor]);
 
   const handleClear = () => {
     physicsRef.current?.clearWorld();
@@ -352,9 +327,12 @@ function App() {
         onWpmChange={setWpm}
         maxParticles={maxParticles}
         onMaxParticlesChange={setMaxParticles}
-        palettes={PALETTES}
-        activePaletteId={activePaletteId}
-        onPaletteChange={setActivePaletteId}
+        // Palette Props
+        seedColor={seedColor}
+        onSeedColorChange={setSeedColor}
+        schemeMode={schemeMode}
+        onSchemeModeChange={setSchemeMode}
+        currentPalette={paletteColors}
         onRegeneratePoem={handleRegeneratePoem}
       />
 
