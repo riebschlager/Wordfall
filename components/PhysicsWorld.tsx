@@ -90,7 +90,13 @@ const PhysicsWorld = forwardRef<PhysicsWorldHandle, PhysicsWorldProps>(({ config
         (body as any).color = color;
         (body as any).createdAt = Date.now();
         (body as any).hasCollided = false; // Track collision for audio
-        
+
+        // Add slight upward motion as letter appears
+        Matter.Body.setVelocity(body, {
+            x: (Math.random() - 0.5) * 0.5, // Tiny horizontal variance for natural feel
+            y: -2 // Upward motion
+        });
+
         Matter.World.add(world, body);
         // Use Math.max(1, spacing) to ensure we always advance at least the visual width of the letter,
         // even if the physics body is tiny (low spacing).
